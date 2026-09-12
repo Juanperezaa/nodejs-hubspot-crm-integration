@@ -172,6 +172,117 @@ vocabulary meets an internally coherent one.
 
 ---
 
+## Design patterns in use
+
+Named here because a pattern applied without being named tends to be applied
+inconsistently, and because "which patterns did you use" is a fair question to
+ask of any codebase.
+
+Only patterns the project actually uses are listed. None was adopted for its
+own sake.
+
+### Repository
+
+`contactRepository`, `dealRepository`, `associationRepository`,
+`pipelineRepository`, `propertyRepository`.
+
+Each owns the endpoints for one HubSpot object family and absorbs that family's
+quirks — which properties must be requested explicitly, which batch limits
+apply, whether stages arrive ordered. Callers above ask for records; they never
+learn that a contact can be read by email through `idProperty` while a deal
+cannot be read by anything but its id.
+
+### Singleton, with an explicit reset seam
+
+Five caches live for the process lifetime:
+
+| Module                               | Caches                | Reset                     |
+| ------------------------------------ | --------------------- | ------------------------- |
+| `config/env.js`                      | validated environment | `resetEnvironmentCache()` |
+| `clients/hubSpotClient.js`           | the axios instance    | `resetClientCache()`      |
+| `repositories/pipelineRepository.js` | pipeline definitions  | `resetPipelineCache()`    |
+| `repositories/propertyRepository.js` | property definitions  | `resetPropertyCache()`    |
+
+They are singletons for a reason in each case. Configuration read twice could
+disagree with itself mid-operation. One axios instance means one connection pool
+and one set of interceptors. Pipeline and property definitions are
+_configuration an administrator edits_, not data — re-reading them on every deal
+creation would spend rate-limit budget on an answer that does not move.
+
+**Every one exposes a reset**, which is what separates a deliberate singleton
+from accidental global state: the cache can be proven to work, and a test can
+put the module back to a known condition. `tests/unit/caching.test.js` does
+exactly that — three reads cost one request, and a reset restores the second.
+
+That test exists because the seams were, for a while, exported and never called.
+A seam nothing pulls is not a seam; it is an unused export, and the caching it
+supported was asserted only in a comment.
+
+### Facade
+
+`hubSpotService` presents the brief's vocabulary — `getHubSpotContactNames`,
+`createHubSpotDeal`, `associateContactToDeal` — over repositories that use
+domain vocabulary (`findContactById`, `createDeal`). One call at the facade may
+become several beneath: `createHubSpotDeal` verifies the pipeline, then writes.
+
+The mapping is the point of the layer. It is where an externally imposed set of
+names meets an internally coherent one, and keeping it in one place stops the
+brief's vocabulary leaking into every module.
+
+### Decorator, around every request
+
+`handleHubSpotErrors` wraps an operation rather than being called by it. The
+retry policy, the backoff and the error normalisation are therefore properties
+of the _transport_, not of whoever remembered to write a loop:
+
+```js
+await handleHubSpotErrors(() => httpClient.request(…), { retryPolicy, … });
+```
+
+Because there is no second path out of `hubSpotClient`, no call site can bypass
+it.
+
+### Iterator, for pagination
+
+`paginateAll` is an async generator, so callers write `for await (const record
+of …)` and consume records one at a time. Memory stays constant whether the
+portal holds ten contacts or a hundred thousand, and breaking out of the loop
+stops the fetching — a property `collectAllPages` deliberately gives up, which
+is why it has a separate name.
+
+### Strategy, for rendering
+
+`hubSpotApiHandler` holds operations as data. Each may supply its own `render`,
+and those that do not fall back to the default:
+
+```js
+'sync-contacts': { run: …, render: formatSyncReport },
+'list-contacts': { run: … },          // default rendering
+```
+
+The help text is generated from the same table that dispatches, so the two
+cannot drift apart.
+
+### Guard clauses over nesting
+
+Validation returns or throws early throughout, rather than wrapping the body in
+`if (valid) { … }`. `validateRecordId` is the clearest case: it rejects a
+non-numeric id before a request is spent discovering the same thing, and the
+happy path is never indented behind a condition.
+
+---
+
+## Patterns deliberately not used
+
+| Pattern                              | Why not                                                                                                                                                                                                  |
+| ------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Dependency injection container       | Two production dependencies and one composition root. A container would add indirection and remove nothing.                                                                                              |
+| Abstract base class for repositories | Contacts and deals differ in ways that matter — one has a unique property, the other does not. A shared base would force a false symmetry, and the two syncs would end up unified when they must not be. |
+| Observer / event emitter             | Nothing here is long-lived enough to need one. The logger is called directly.                                                                                                                            |
+| Unit of work / transactions          | HubSpot's REST API offers no transaction. Pretending otherwise in the code would be a lie about what the system can guarantee.                                                                           |
+
+---
+
 ## Testing follows the same boundaries
 
 | Suite                | Tests | Needs a network     |
