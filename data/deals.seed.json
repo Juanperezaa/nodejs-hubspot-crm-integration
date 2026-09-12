@@ -1,0 +1,26 @@
+[
+  {
+    "externalId": "SEED-DEAL-001",
+    "dealname": "Analytical Engines — Enterprise Licence",
+    "amount": "15000.00",
+    "contactEmail": "ada.lovelace@example-crm-test.com"
+  },
+  {
+    "externalId": "SEED-DEAL-002",
+    "dealname": "Bletchley Computing — Onboarding Package",
+    "amount": "2500.50",
+    "contactEmail": "alan.turing@example-crm-test.com"
+  },
+  {
+    "externalId": "SEED-DEAL-003",
+    "dealname": "Naval Systems — Annual Support Retainer",
+    "amount": "8990.99",
+    "contactEmail": "grace.hopper@example-crm-test.com"
+  },
+  {
+    "externalId": "SEED-DEAL-004",
+    "dealname": "Eindhoven Algorithms — Research Partnership",
+    "amount": "42000.00",
+    "contactEmail": "edsger.dijkstra@example-crm-test.com"
+  }
+]
