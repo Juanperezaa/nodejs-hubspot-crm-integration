@@ -242,8 +242,29 @@ Nine pull requests, each a vertical slice that leaves `main` in a working state.
 | 8   | `feat/sync`                     | Both sync services, seed data                                                       | R11, R12           |
 | 9   | `feat/api-handler-and-examples` | `hubSpotApiHandler`, runnable examples, final docs                                  | R14, R18, R28      |
 
-Conventions: Conventional Commits 1.0.0, atomic commits, squash merge so `main`
-reads as a clean narrative. Commit messages validated in CI.
+Conventions: Conventional Commits 1.0.0, atomic commits, validated in CI.
+
+**Merge strategy: a merge commit per pull request, never a squash.**
+
+Squashing would collapse each pull request into one commit and discard the
+per-change reasoning the commit bodies carry. In a repository where the history
+is itself part of the deliverable, that throws away the evidence.
+
+A merge commit preserves every atomic commit _and_ records the pull request
+boundary, so `git log --graph` maps one-to-one onto the nine delivery slices. A
+reviewer can read it at two levels: merge commits as a table of contents, the
+commits beneath them as the reasoning.
+
+```
+*   Merge pull request #1 from Juanperezaa/chore/scaffolding
+|\
+| * fix(tests): discover test files explicitly for cross-version support
+| * docs(docs): add delivery plan, progress log and decision record
+| * ci(ci): add quality, commit message and secret scan pipelines
+| * ...
+|/
+* chore(repo): initialize repository with license and ignore rules
+```
 
 ---
 
