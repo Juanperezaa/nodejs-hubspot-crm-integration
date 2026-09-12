@@ -29,17 +29,13 @@ const axios = require('axios');
 
 const { getEnvironment } = require('../src/config/env');
 const { getHubSpotConfig, OBJECT_TYPES } = require('../src/config/hubspot.config');
+const {
+  REQUESTED_SCOPES,
+  DELIBERATELY_OMITTED_SCOPES,
+  auditScopeCoverage,
+} = require('../src/config/scopes');
 const { InvalidConfigurationError } = require('../src/errors/InvalidConfigurationError');
 const { redactSecrets } = require('../src/utils/redactSecrets');
-
-/** Scopes this project needs, mapped to the operations that require them. */
-const REQUIRED_SCOPES = Object.freeze({
-  'crm.objects.contacts.read': 'getHubSpotContactNames, getHubSpotContacts',
-  'crm.objects.contacts.write': 'createHubSpotContact, updateHubSpotContact, deleteHubSpotContact',
-  'crm.objects.deals.read': 'getHubSpotDeals',
-  'crm.objects.deals.write': 'createHubSpotDeal, updateHubSpotDeal, deleteHubSpotDeal',
-  'crm.schemas.deals.read': 'pipelineRepository, propertyRepository',
-});
 
 /** Deal property names the brief mentions, checked against what the portal has. */
 const DEAL_PROPERTY_NAMES_UNDER_TEST = Object.freeze([
@@ -80,6 +76,58 @@ async function runStep(label, step) {
     }
     process.stdout.write(`  Step "${label}" could not complete; continuing.\n`);
     return false;
+  }
+}
+
+/**
+ * Reports which scopes were granted and, more usefully, which operations they
+ * permit.
+ *
+ * The distinction matters. HubSpot authorises an endpoint when the token holds
+ * *any one* of its accepted scopes, so an absent scope is only a problem when
+ * it blocks a real operation. A flat missing-scope list would raise false
+ * alarms — `crm.schemas.deals.read` absent is harmless if
+ * `crm.objects.deals.read` is present, because either satisfies the Properties
+ * and Pipelines endpoints.
+ *
+ * @param {Set<string>} grantedScopes
+ * @returns {void}
+ */
+function reportScopeCoverage(grantedScopes) {
+  const write = (text) => process.stdout.write(text);
+
+  write('\n  Scopes this project requests:\n');
+  for (const scopeName of REQUESTED_SCOPES) {
+    write(`  [${mark(grantedScopes.has(scopeName))}] ${scopeName}\n`);
+  }
+
+  const coverage = auditScopeCoverage(grantedScopes);
+  const endpointCount = coverage.satisfied.length + coverage.blocked.length;
+
+  write(heading('1b. Operation coverage -- what those scopes actually permit'));
+  write(`  ${coverage.satisfied.length} of ${endpointCount} endpoints permitted\n`);
+
+  if (coverage.isFullyCovered) {
+    write('  Every endpoint this project calls is authorised.\n');
+  } else {
+    write('\n  Blocked operations:\n');
+    for (const requirement of coverage.blocked) {
+      write(`  [${mark(false)}] ${requirement.method.padEnd(6)} ${requirement.path}\n`);
+      write(`          ${requirement.operation}\n`);
+      write(`          needs any of : ${requirement.anyOf.join(' | ')}\n`);
+      write(`          breaks       : ${requirement.usedBy.join(', ')}\n`);
+    }
+    write(
+      '\n  Add any of these in HubSpot > Settings > Integrations > Private Apps >\n' +
+        `  your app > Scopes: ${coverage.missingScopes.join(', ')}\n` +
+        '  The existing token picks up scope changes immediately; it does not\n' +
+        '  need regenerating.\n'
+    );
+  }
+
+  write('\n  Scopes deliberately NOT requested:\n');
+  for (const [scopeName, reason] of Object.entries(DELIBERATELY_OMITTED_SCOPES)) {
+    write(`    ${scopeName}\n      ${reason}\n`);
   }
 }
 
@@ -161,20 +209,7 @@ async function main() {
   });
 
   if (grantedScopes.size > 0) {
-    process.stdout.write('\n  Required scopes for this project:\n');
-    let anyScopeMissing = false;
-    for (const [scopeName, usedBy] of Object.entries(REQUIRED_SCOPES)) {
-      const isGranted = grantedScopes.has(scopeName);
-      anyScopeMissing = anyScopeMissing || !isGranted;
-      process.stdout.write(`  [${mark(isGranted)}] ${scopeName.padEnd(32)} ${usedBy}\n`);
-    }
-    if (anyScopeMissing) {
-      process.stdout.write(
-        '\n  Add the missing scopes in HubSpot > Settings > Integrations >\n' +
-          '  Private Apps > your app > Scopes, then regenerate nothing: the\n' +
-          '  existing token picks up scope changes immediately.\n'
-      );
-    }
+    reportScopeCoverage(grantedScopes);
   }
 
   // --- 2. Deal properties ---------------------------------------------------
