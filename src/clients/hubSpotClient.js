@@ -59,6 +59,18 @@ function recordRateLimitHeaders(headers = {}) {
     dailyRemaining: headers['x-hubspot-ratelimit-daily-remaining']
       ? Number(headers['x-hubspot-ratelimit-daily-remaining'])
       : undefined,
+    // HubSpot also enforces a per-second ceiling and reports it in headers its
+    // published limits table does not mention. Observed against a live portal:
+    // `x-hubspot-ratelimit-secondly: 10` alongside the documented
+    // hundred-per-ten-seconds burst. Recorded because it binds first under
+    // concurrency — ten parallel requests exhaust it while the ten-second
+    // window still shows ninety remaining.
+    secondlyMax: headers['x-hubspot-ratelimit-secondly']
+      ? Number(headers['x-hubspot-ratelimit-secondly'])
+      : undefined,
+    secondlyRemaining: headers['x-hubspot-ratelimit-secondly-remaining']
+      ? Number(headers['x-hubspot-ratelimit-secondly-remaining'])
+      : undefined,
     observedAt: new Date().toISOString(),
   };
 
