@@ -15,7 +15,7 @@
 | 1            | `chore/scaffolding`             | merged      |
 | 2            | `feat/config-and-logging`       | merged      |
 | 3            | `feat/fundamentals`             | merged      |
-| 4            | `feat/http-client-and-errors`   | in progress |
+| 4            | `feat/http-client-and-errors`   | merged      |
 | 5            | `feat/contacts`                 | not started |
 | 6            | `feat/deals`                    | not started |
 | 7            | `feat/associations`             | not started |
@@ -24,8 +24,53 @@
 
 **Requirement coverage:** 8 / 27 artefacts — run `npm run verify:requirements`.
 
-**Current blocker:** no valid `pat-` access token available. See entry
-_2026-09-11 · Credential mismatch_ below.
+**Current blocker:** no valid `pat-` access token available. The cause is now
+understood and is a portal permissions issue, not a missing credential. See
+_2026-09-11 · Scope permissions blocked in the shared portal_ below.
+
+---
+
+## 2026-09-11 · Scope permissions blocked in the shared portal
+
+**Finding**
+
+The six scopes this project needs cannot be granted in the portal being used.
+They appear in the scope picker but are greyed out and unselectable.
+
+The cause is not a missing subscription or a wrong scope name. **A HubSpot
+private app can only be granted scopes the user creating it already holds.**
+The user's seat in the shared company sandbox carries no CRM permissions over
+contacts and deals, so those scopes are unavailable to any app they create
+there.
+
+Confirmed by observation: `crm.schemas.deals.read` and `crm.schemas.deals.write`
+are both present in the picker and both disabled, which rules out a missing or
+misspelled scope.
+
+**Why this matters beyond the immediate block**
+
+The brief asks for "**your own** HubSpot portal (developer account / private
+app)". A shared company sandbox is not that. Two consequences follow:
+
+1. Scope availability is governed by someone else's decisions about the
+   operator's seat.
+2. This project creates, updates and **deletes** real records. Running the
+   integration suite repeatedly in a sandbox colleagues use for their own
+   testing pollutes their environment.
+
+**Resolution offered, in order of cost**
+
+1. Reuse the token of a private app already present in the portal, created by
+   someone who did hold the permissions. Costs nothing to try, and
+   `npm run probe` reports exactly which scopes any token carries.
+2. **Create a developer test account.** Free, Super Admin by default, all
+   scopes available, 90-day Enterprise trial, and it is what the brief actually
+   asks for. Recommended.
+3. Ask a Super Admin of the shared portal to grant CRM permissions. Works, but
+   depends on another person's availability.
+
+**Documented in** `docs/HUBSPOT_SETUP.md`, including the greyed-out-scope
+diagnosis, so the next reader does not have to rediscover it.
 
 ---
 
