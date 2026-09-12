@@ -18,8 +18,7 @@
 
 const hubSpotClient = require('../clients/hubSpotClient');
 const { getHubSpotConfig, OBJECT_TYPES, PAGINATION_LIMITS } = require('../config/hubspot.config');
-const { paginateAll } = require('../utils/paginate');
-const { chunkForBatch } = require('../utils/paginate');
+const { paginateAll, chunkForBatch } = require('../utils/paginate');
 const { validateContactPayload, validateRecordId } = require('../utils/validateHubSpotPayload');
 
 /**
