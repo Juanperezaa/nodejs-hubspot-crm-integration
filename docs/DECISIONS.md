@@ -177,3 +177,61 @@ reviewer's local git configuration as a side effect of `npm install`. For a
 repository whose purpose is to be cloned and inspected by someone else, that is
 an unwelcome surprise. CI validation cannot be bypassed with `--no-verify`
 either, so it is the stronger control of the two.
+
+---
+
+## D11 — Correlate deals on `dealname`, not on a custom property
+
+**Decision.** `syncDealsWithHubSpot` reconciles existing deals by searching on
+`dealname` through the Search API.
+
+**Alternatives.** Create a custom deal property, `external_sync_id`, write the
+source system's identifier into it, and upsert on that.
+
+**Reasoning.**
+
+The custom-property approach is the better design in a long-lived production
+integration: an external id is stable under renames, whereas `dealname` is not.
+It was rejected here for two reasons, both surfaced by auditing scope
+requirements endpoint by endpoint.
+
+1. **It needs a seventh scope.** Creating a property requires
+   `crm.schemas.deals.write`. Every other operation in this project is covered
+   by four object scopes, and asking an operator to grant schema-write access
+   so that a technical exercise can define a property is disproportionate.
+2. **It mutates the operator's portal irreversibly.** Records created by this
+   project are deleted by its own cleanup. A custom property is not: it
+   persists on the Deal schema after the exercise is over.
+
+The trade-off is stated rather than hidden: renaming a seeded deal in HubSpot
+and re-running the sync creates a second deal instead of updating the first.
+For a fixed seed file that cannot happen, and the constraint is documented in
+`docs/API_REFERENCE.md` where a future reader will look for it.
+
+**Recorded in code** as an entry in `DELIBERATELY_OMITTED_SCOPES`, with a test
+asserting the reasoning stays attached to the omission.
+
+---
+
+## D12 — Model scope requirements as `anyOf`, and check them mechanically
+
+**Decision.** Every endpoint the project calls is catalogued in
+`src/config/scopes.js` with the set of scopes that authorise it, and
+`auditScopeCoverage` computes coverage from that table. `npm run probe` reports
+it against a live token.
+
+**Reasoning.**
+
+HubSpot's reference pages say an endpoint "requires **one of** the following
+scopes". A flat required-list model would therefore produce false failures — it
+would report `crm.schemas.deals.read` as missing even when
+`crm.objects.deals.read` already authorises the same call.
+
+Modelling it correctly has a second payoff. The probe can say _which operations
+a missing scope breaks_ rather than merely that a scope is absent, which is the
+difference between a diagnostic and a complaint.
+
+It also makes a claim in the documentation falsifiable: "the requested scopes
+are sufficient" is computed, and `tests/unit/scopes.test.js` fails the build if
+an endpoint is ever added whose scope the setup guide does not tell the operator
+to grant.
