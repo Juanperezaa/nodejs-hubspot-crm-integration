@@ -63,11 +63,15 @@ module.exports = [
     },
   },
   {
-    // Tests may shadow and redefine freely for readability.
+    // Tests may shadow and redefine freely for readability. `require-await` is
+    // relaxed because test doubles standing in for network calls are correctly
+    // declared `async` — they must return a Promise to match the real
+    // signature — even when their body has nothing to await.
     files: ['tests/**/*.js'],
     rules: {
       'no-shadow': 'off',
       'id-length': 'off',
+      'require-await': 'off',
     },
   },
 ];
