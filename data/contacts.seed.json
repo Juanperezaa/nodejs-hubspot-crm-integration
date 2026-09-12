@@ -1,0 +1,47 @@
+[
+  {
+    "email": "ada.lovelace@example-crm-test.com",
+    "firstname": "Ada",
+    "lastname": "Lovelace",
+    "phone": "+44 20 7946 0101",
+    "company": "Analytical Engines Ltd",
+    "jobtitle": "Principal Mathematician",
+    "website": "https://example-crm-test.com"
+  },
+  {
+    "email": "alan.turing@example-crm-test.com",
+    "firstname": "Alan",
+    "lastname": "Turing",
+    "phone": "+44 161 496 0102",
+    "company": "Bletchley Computing",
+    "jobtitle": "Head of Cryptanalysis",
+    "website": "https://example-crm-test.com"
+  },
+  {
+    "email": "grace.hopper@example-crm-test.com",
+    "firstname": "Grace",
+    "lastname": "Hopper",
+    "phone": "+1 202 555 0103",
+    "company": "Naval Systems Group",
+    "jobtitle": "Director of Compilers",
+    "website": "https://example-crm-test.com"
+  },
+  {
+    "email": "edsger.dijkstra@example-crm-test.com",
+    "firstname": "Edsger",
+    "lastname": "Dijkstra",
+    "phone": "+31 20 555 0104",
+    "company": "Eindhoven Algorithms",
+    "jobtitle": "Research Fellow",
+    "website": "https://example-crm-test.com"
+  },
+  {
+    "email": "barbara.liskov@example-crm-test.com",
+    "firstname": "Barbara",
+    "lastname": "Liskov",
+    "phone": "+1 617 555 0105",
+    "company": "Substitution Systems",
+    "jobtitle": "Chief Architect",
+    "website": "https://example-crm-test.com"
+  }
+]
