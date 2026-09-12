@@ -49,7 +49,7 @@ Dependencies run in one direction only. Nothing below reaches upward.
 
 ```
             ┌──────────────────────────────────────────┐
-  examples/ │  08-full-workflow.js, 03-create-deal.js  │  how it is invoked
+  examples/ │  full-workflow.js, create-deal.js  │  how it is invoked
             └────────────────────┬─────────────────────┘
                                  │
             ┌────────────────────▼─────────────────────┐
@@ -97,7 +97,7 @@ association endpoints in March 2027**, `config/hubspot.config.js` and
 Following `createHubSpotDeal('Acme expansion', 4500)`:
 
 ```
- 1  examples/03-create-deal.js
+ 1  examples/create-deal.js
         calls the handler with the operation name and arguments
         │
  2  api/hubSpotApiHandler
@@ -288,7 +288,7 @@ place entirely.
 ## 10. How to verify any of this
 
 ```bash
-npm run validate              # lint + 156 unit tests + requirement matrix
+npm run validate              # lint + 163 unit tests + requirement matrix
 npm run probe                 # portal identity, scopes, properties, pipelines
 npm run test:integration      # 48 real calls against the portal
 npm run example:workflow      # the whole integration in one run, self-cleaning

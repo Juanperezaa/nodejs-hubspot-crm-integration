@@ -17,7 +17,7 @@
  * on the Deal object, so `validateHubSpotPayload` translates them. Without that
  * the call returns `400 PROPERTY_DOESNT_EXIST`.
  *
- * Run: node src/examples/03-create-deal.js [dealName] [amount]
+ * Run: node src/examples/create-deal.js [dealName] [amount]
  */
 
 const { runOperation } = require('../api/hubSpotApiHandler');

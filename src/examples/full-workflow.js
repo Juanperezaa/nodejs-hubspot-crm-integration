@@ -14,7 +14,7 @@
  *
  * Pass `--keep` to skip the cleanup and inspect the records in HubSpot.
  *
- * Run: node src/examples/08-full-workflow.js [--keep]
+ * Run: node src/examples/full-workflow.js [--keep]
  */
 
 const hubSpotService = require('../services/hubSpotService');

@@ -45,8 +45,8 @@ The final slice. Requirement coverage reaches **27 / 27**.
   The operation table is data, so `--help` is generated from the same source
   that dispatches and the two cannot drift.
 - Eight runnable examples, one per section of the brief, including
-  `07-error-handling.js` which provokes every failure class and prints how it
-  is classified, and `08-full-workflow.js` which exercises every layer against
+  `error-handling.js` which provokes every failure class and prints how it
+  is classified, and `full-workflow.js` which exercises every layer against
   the portal in about ten seconds and cleans up after itself.
 - `docs/CONTEXT.md` - the system explained: domain, layers, one request end to
   end, and where failures go.
