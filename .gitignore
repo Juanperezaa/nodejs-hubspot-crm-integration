@@ -1,0 +1,29 @@
+# Dependencies
+node_modules/
+
+# Environment files — never commit real credentials.
+# Only .env.example is tracked.
+.env
+.env.*
+!.env.example
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Runtime and build output
+coverage/
+dist/
+build/
+tmp/
+.cache/
+
+# Editor and OS noise
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Local probe output (may echo portal metadata)
+reports/*.local.json
