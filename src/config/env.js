@@ -224,18 +224,38 @@ function getEnvironment(options = {}) {
 }
 
 /**
- * Clears the cache. Test-only; application code reads configuration once.
+ * Clears the cached environment. Test-only; application code reads
+ * configuration once.
+ *
+ * The dotenv flag is deliberately **not** reset. `.env` is read once per
+ * process, and re-reading it would repopulate variables a caller had just
+ * removed from `process.env` — which silently defeats any attempt to test
+ * behaviour in their absence. That defect was real: with a populated `.env` on
+ * disk, a test deleting `HUBSPOT_ACCESS_TOKEN` got it back, and the resulting
+ * assertion failure printed the live token into the test output.
+ *
+ * `reloadDotenvFile` exists for the rare test that genuinely needs the file
+ * read again, and is explicit about it.
  *
  * @returns {void}
  */
 function resetEnvironmentCache() {
   cachedEnvironment = null;
+}
+
+/**
+ * Forces `.env` to be read again on the next load. Test-only.
+ *
+ * @returns {void}
+ */
+function reloadDotenvFile() {
   dotenvHasBeenLoaded = false;
 }
 
 module.exports = {
   getEnvironment,
   resetEnvironmentCache,
+  reloadDotenvFile,
   validateAccessToken,
   ACCESS_TOKEN_PATTERN,
   BARE_UUID_PATTERN,
