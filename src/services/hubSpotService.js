@@ -19,10 +19,11 @@
  * point of the layer, not an accident of it.
  */
 
+const associationRepository = require('../repositories/associationRepository');
 const contactRepository = require('../repositories/contactRepository');
 const dealRepository = require('../repositories/dealRepository');
 const pipelineRepository = require('../repositories/pipelineRepository');
-const { getHubSpotConfig } = require('../config/hubspot.config');
+const { getHubSpotConfig, OBJECT_TYPES } = require('../config/hubspot.config');
 const { HubSpotApiError, FAILURE_KINDS } = require('../errors/HubSpotApiError');
 const { logger } = require('../utils/logger');
 const { validateRecordId } = require('../utils/validateHubSpotPayload');
@@ -419,6 +420,146 @@ async function deleteHubSpotDeal(dealId, options = {}) {
   return { dealId: validatedId, archived: true, existedBeforeDelete };
 }
 
+// ---------------------------------------------------------------------------
+// Associations
+// ---------------------------------------------------------------------------
+
+/**
+ * Associates a contact with a deal.
+ *
+ * Brief, Section 2.3: "Implement associateContactToDeal(contactId, dealId)
+ * using the HubSpot associations endpoint, ensuring idempotency where
+ * possible."
+ *
+ * **Idempotency comes from two places, and the second is the one that matters
+ * to a caller.**
+ *
+ * The endpoint is a `PUT`, so repeating the request is idempotent by HTTP
+ * semantics: HubSpot will not create a second association. That satisfies the
+ * requirement on its own, and it is what makes the operation safe to retry
+ * after a network failure where the outcome is unknown.
+ *
+ * But "safe to repeat" is not the same as "tells the truth about what it did".
+ * A caller synchronising a hundred contact-deal pairs wants to know how many
+ * links it actually established, and a function that answers "a hundred" every
+ * time is useless for that. So this reads the existing associations first and
+ * reports `alreadyAssociated`, at the cost of one extra request.
+ *
+ * That read is skippable. `skipExistingCheck: true` halves the request count
+ * for a bulk run that does not care about the distinction, and the `PUT` keeps
+ * the operation correct either way.
+ *
+ * The association type is `HUBSPOT_DEFINED` id 4, Contact to Deal. The
+ * `default` endpoint is used rather than the labelled one because the ordinary
+ * relationship carries no custom label.
+ *
+ * @param {string|number} contactId
+ * @param {string|number} dealId
+ * @param {{skipExistingCheck?: boolean}} [options]
+ * @returns {Promise<{contactId: string, dealId: string, associated: boolean, alreadyAssociated: boolean|undefined}>}
+ */
+async function associateContactToDeal(contactId, dealId, options = {}) {
+  const { skipExistingCheck = false } = options;
+
+  const validatedContactId = validateRecordId(contactId, 'contactId');
+  const validatedDealId = validateRecordId(dealId, 'dealId');
+
+  let alreadyAssociated;
+  if (!skipExistingCheck) {
+    alreadyAssociated = await associationRepository.isAssociated(
+      OBJECT_TYPES.CONTACTS,
+      validatedContactId,
+      OBJECT_TYPES.DEALS,
+      validatedDealId
+    );
+
+    if (alreadyAssociated) {
+      logger.info('Contact and deal are already associated', {
+        contactId: validatedContactId,
+        dealId: validatedDealId,
+      });
+      return {
+        contactId: validatedContactId,
+        dealId: validatedDealId,
+        associated: true,
+        alreadyAssociated: true,
+      };
+    }
+  }
+
+  await associationRepository.createDefaultAssociation(
+    OBJECT_TYPES.CONTACTS,
+    validatedContactId,
+    OBJECT_TYPES.DEALS,
+    validatedDealId
+  );
+
+  logger.info('Associated contact with deal', {
+    contactId: validatedContactId,
+    dealId: validatedDealId,
+  });
+
+  return {
+    contactId: validatedContactId,
+    dealId: validatedDealId,
+    associated: true,
+    alreadyAssociated: skipExistingCheck ? undefined : false,
+  };
+}
+
+/**
+ * Lists the deals a contact is associated with.
+ *
+ * @param {string|number} contactId
+ * @returns {Promise<string[]>} Deal record ids.
+ */
+async function getDealsForContact(contactId) {
+  const associations = await associationRepository.findAssociations(
+    OBJECT_TYPES.CONTACTS,
+    contactId,
+    OBJECT_TYPES.DEALS
+  );
+
+  return associations.map((association) => String(association.toObjectId));
+}
+
+/**
+ * Removes the association between a contact and a deal.
+ *
+ * Included because the integration suite must be able to undo what it does,
+ * and because an association created in error is otherwise only removable
+ * through the HubSpot interface.
+ *
+ * @param {string|number} contactId
+ * @param {string|number} dealId
+ * @returns {Promise<{contactId: string, dealId: string, removed: boolean}>}
+ */
+async function dissociateContactFromDeal(contactId, dealId) {
+  const validatedContactId = validateRecordId(contactId, 'contactId');
+  const validatedDealId = validateRecordId(dealId, 'dealId');
+
+  try {
+    await associationRepository.removeAssociations(
+      OBJECT_TYPES.CONTACTS,
+      validatedContactId,
+      OBJECT_TYPES.DEALS,
+      validatedDealId
+    );
+  } catch (error) {
+    if (error instanceof HubSpotApiError && error.kind === FAILURE_KINDS.NOT_FOUND) {
+      return { contactId: validatedContactId, dealId: validatedDealId, removed: false };
+    }
+    throw error;
+  }
+
+  logger.info('Removed the association between contact and deal', {
+    contactId: validatedContactId,
+    dealId: validatedDealId,
+  });
+
+  return { contactId: validatedContactId, dealId: validatedDealId, removed: true };
+}
+
 module.exports = {
   getHubSpotContactNames,
   getHubSpotContacts,
@@ -429,5 +570,8 @@ module.exports = {
   createHubSpotDeal,
   updateHubSpotDeal,
   deleteHubSpotDeal,
+  associateContactToDeal,
+  getDealsForContact,
+  dissociateContactFromDeal,
   buildFullName,
 };
