@@ -17,6 +17,7 @@
     "verify:requirements:strict": "node scripts/verify-requirements.js --strict",
     "docs:matrix": "node scripts/verify-requirements.js --markdown > docs/REQUIREMENTS_MATRIX.md",
     "probe": "node scripts/probe-portal.js",
+    "lint:commits": "commitlint --from main --to HEAD --verbose",
     "validate": "npm run lint && npm test && npm run verify:requirements",
     "fundamentals:callbacks": "node src/fundamentals/callbacks.js",
     "fundamentals:async": "node src/fundamentals/asyncAwait.js",
