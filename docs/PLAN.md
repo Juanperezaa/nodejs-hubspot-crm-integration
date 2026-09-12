@@ -242,8 +242,13 @@ Nine pull requests, each a vertical slice that leaves `main` in a working state.
 | 8   | `feat/sync`                     | Both sync services, seed data                                                       | R11, R12           |
 | 9   | `feat/api-handler-and-examples` | `hubSpotApiHandler`, runnable examples, final docs                                  | R14, R18, R28      |
 
-Conventions: Conventional Commits 1.0.0, atomic commits, squash merge so `main`
-reads as a clean narrative. Commit messages validated in CI.
+Conventions: Conventional Commits 1.0.0, atomic commits, validated in CI.
+
+**Merge strategy: rebase, not squash.** Squashing would collapse each pull
+request into a single commit and discard the per-change reasoning that the
+commit bodies carry. Rebasing keeps `main` linear while preserving every atomic
+commit, so `git log` remains a readable account of why each decision was taken,
+not merely what shipped.
 
 ---
 
