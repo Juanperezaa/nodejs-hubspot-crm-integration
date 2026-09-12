@@ -13,8 +13,8 @@
 | Pull request | Scope                           | State       |
 | ------------ | ------------------------------- | ----------- |
 | 1            | `chore/scaffolding`             | merged      |
-| 2            | `feat/config-and-logging`       | in progress |
-| 3            | `feat/fundamentals`             | not started |
+| 2            | `feat/config-and-logging`       | merged      |
+| 3            | `feat/fundamentals`             | in progress |
 | 4            | `feat/http-client-and-errors`   | not started |
 | 5            | `feat/contacts`                 | not started |
 | 6            | `feat/deals`                    | not started |
@@ -26,6 +26,64 @@
 
 **Current blocker:** no valid `pat-` access token available. See entry
 _2026-09-11 · Credential mismatch_ below.
+
+---
+
+## 2026-09-11 · PR 3 — Section 1, Node.js fundamentals
+
+Worth 40% of the assessment, so each exercise is implemented as working,
+tested code rather than as a snippet that satisfies a filename.
+
+**Done**
+
+- `src/fundamentals/callbacks.js` (1.1) — both forms the brief allows:
+  `setTimeout` for a failure the function decides on, and `fs.readFile` for one
+  the operating system reports. Error-first contract throughout, with the
+  callback always deferred so the function is never sometimes-reentrant.
+- `src/fundamentals/asyncAwait.js` (1.2) — a genuine refactor: the Section 1.1
+  functions are wrapped rather than reimplemented, one by hand to show the
+  mechanics and one with `promisify` to show the shorthand. Adds `Promise.all`
+  for concurrency and `Promise.allSettled` for partial success, the latter
+  being exactly what the sync services need.
+- `src/fundamentals/utils_module.js` + `main.js` (1.3) — CommonJS export and
+  consumer. `sumDealAmounts` applies the exercise to the domain: HubSpot
+  returns amounts as strings, so a naive sum concatenates.
+- `src/utils/streams.js` (1.4) — the required `Readable.from` → uppercase →
+  `process.stdout` flow, plus object-mode streaming of contact records.
+- `data/contacts.seed.json`, `data/deals.seed.json` — sources for Section 2.
+- 36 new tests. Total 66 passing.
+
+**Verified**
+
+- `npm run lint` clean, `npm test` 66/66.
+- All four exercises executed end to end via their npm scripts; output
+  inspected, not assumed.
+
+**Defects found and fixed during the work**
+
+- _A test asserting something Node does not guarantee._ The chunk-boundary test
+  expected three separate reads from the uppercase Transform and got one
+  coalesced read. The transform was correct — `_transform` did run three times —
+  but a non-object-mode readable side is free to merge queued chunks, so the
+  assertion was measuring the reader rather than the transform. Rewritten to
+  read output back after each individual write, which is the property that
+  actually matters and is guaranteed.
+- _A misleading error message._ `sumArrayOfNumbers([1, NaN])` reported
+  "index 1 is null", because `JSON.stringify(NaN)` returns `"null"`. A reader
+  would have gone looking for a null. Now named explicitly, with a test.
+
+**Decisions taken during the work**
+
+- `utils_module.js` keeps the brief's `snake_case` filename although every
+  other file here is `camelCase`. The brief names it explicitly and an
+  evaluator should find it under the name they asked for. Recorded rather than
+  silently resolved.
+- `pipeline` is used throughout instead of `.pipe()`. `.pipe()` forwards
+  neither errors nor destruction, which leaks handles when a destination fails.
+- The streams module goes beyond the brief with `streamContactFullNames`,
+  because that is the shape `getHubSpotContactNames` needs: constant memory
+  over a paginated source, whether the portal holds ten contacts or a hundred
+  thousand.
 
 ---
 
