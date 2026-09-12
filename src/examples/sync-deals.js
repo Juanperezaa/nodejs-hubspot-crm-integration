@@ -13,7 +13,7 @@
  * Source records carrying `contactEmail` are also associated with that contact.
  * Running twice duplicates neither the deal nor the association.
  *
- * Run: node src/examples/06-sync-deals.js [sourcePath] [--dry-run]
+ * Run: node src/examples/sync-deals.js [sourcePath] [--dry-run]
  */
 
 const { runOperation } = require('../api/hubSpotApiHandler');

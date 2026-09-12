@@ -15,7 +15,7 @@
  * demand without abusing the API (a 429, a 5xx) are demonstrated against
  * fabricated responses, and labelled as such rather than passed off as live.
  *
- * Run: node src/examples/07-error-handling.js
+ * Run: node src/examples/error-handling.js
  */
 
 const hubSpotService = require('../services/hubSpotService');

@@ -7,7 +7,7 @@
  * "Implement getHubSpotContactNames making real calls to
  * GET /crm/v3/objects/contacts, handle pagination, and return full names."
  *
- * Run: node src/examples/01-list-contact-names.js [limit]
+ * Run: node src/examples/list-contact-names.js [limit]
  */
 
 const { runOperation } = require('../api/hubSpotApiHandler');

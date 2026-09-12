@@ -11,7 +11,7 @@
  * `alreadyAssociated: false`, the second reports `true`, and the portal holds
  * exactly one association either way.
  *
- * Run: node src/examples/04-associate-contact-to-deal.js <contactId> <dealId>
+ * Run: node src/examples/associate-contact-to-deal.js <contactId> <dealId>
  */
 
 const { runOperation } = require('../api/hubSpotApiHandler');
@@ -20,12 +20,12 @@ const [contactId, dealId] = process.argv.slice(2);
 
 if (!contactId || !dealId) {
   process.stderr.write(
-    '\nUsage: node src/examples/04-associate-contact-to-deal.js <contactId> <dealId>\n\n' +
+    '\nUsage: node src/examples/associate-contact-to-deal.js <contactId> <dealId>\n\n' +
       '  Create the two records first:\n' +
-      '    node src/examples/02-create-contact.js\n' +
-      '    node src/examples/03-create-deal.js\n\n' +
+      '    node src/examples/create-contact.js\n' +
+      '    node src/examples/create-deal.js\n\n' +
       '  Or run the whole sequence in one command:\n' +
-      '    node src/examples/08-full-workflow.js\n\n'
+      '    node src/examples/full-workflow.js\n\n'
   );
   process.exit(1);
 }

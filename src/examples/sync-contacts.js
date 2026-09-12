@@ -10,7 +10,7 @@
  *
  * Pass `--dry-run` to see what would change without writing anything.
  *
- * Run: node src/examples/05-sync-contacts.js [sourcePath] [--dry-run]
+ * Run: node src/examples/sync-contacts.js [sourcePath] [--dry-run]
  */
 
 const { runOperation } = require('../api/hubSpotApiHandler');

@@ -233,4 +233,4 @@ the reader to look at the wrong thing entirely.
 | Configuration faults               | `src/errors/InvalidConfigurationError.js`                                    |
 | Rate-limit observation             | `src/clients/hubSpotClient.js`                                               |
 | Tests                              | `tests/unit/handleHubSpotErrors.test.js`, `tests/unit/redactSecrets.test.js` |
-| Live demonstration                 | `src/examples/07-error-handling.js`                                          |
+| Live demonstration                 | `src/examples/error-handling.js`                                             |

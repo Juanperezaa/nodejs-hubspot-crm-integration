@@ -8,7 +8,7 @@
  * running this repeatedly does not collide on HubSpot's unique email
  * constraint and cannot reach a real mailbox.
  *
- * Run: node src/examples/02-create-contact.js [email] [firstname] [lastname]
+ * Run: node src/examples/create-contact.js [email] [firstname] [lastname]
  */
 
 const { runOperation } = require('../api/hubSpotApiHandler');

@@ -24,14 +24,14 @@
     "fundamentals:modules": "node src/fundamentals/main.js",
     "fundamentals:streams": "node src/utils/streams.js",
     "handler": "node src/api/hubSpotApiHandler.js",
-    "example:contact-names": "node src/examples/01-list-contact-names.js",
-    "example:create-contact": "node src/examples/02-create-contact.js",
-    "example:create-deal": "node src/examples/03-create-deal.js",
-    "example:associate": "node src/examples/04-associate-contact-to-deal.js",
-    "example:sync-contacts": "node src/examples/05-sync-contacts.js",
-    "example:sync-deals": "node src/examples/06-sync-deals.js",
-    "example:errors": "node src/examples/07-error-handling.js",
-    "example:workflow": "node src/examples/08-full-workflow.js"
+    "example:contact-names": "node src/examples/list-contact-names.js",
+    "example:create-contact": "node src/examples/create-contact.js",
+    "example:create-deal": "node src/examples/create-deal.js",
+    "example:associate": "node src/examples/associate-contact-to-deal.js",
+    "example:sync-contacts": "node src/examples/sync-contacts.js",
+    "example:sync-deals": "node src/examples/sync-deals.js",
+    "example:errors": "node src/examples/error-handling.js",
+    "example:workflow": "node src/examples/full-workflow.js"
   },
   "keywords": [
     "hubspot",
