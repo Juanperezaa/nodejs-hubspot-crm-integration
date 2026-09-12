@@ -7,6 +7,21 @@ The brief requires the submission to state the portal id, the endpoints used
 and how the private app was configured. Those are recorded here and in
 [`API_REFERENCE.md`](./API_REFERENCE.md).
 
+## The portal this was built against
+
+|                  |                                                           |
+| ---------------- | --------------------------------------------------------- |
+| Portal / hub id  | `52018022`                                                |
+| Private app id   | `52891293`                                                |
+| API base URL     | `https://api.hubapi.com`                                  |
+| Authentication   | Private app access token, `Authorization: Bearer <token>` |
+| CRM objects API  | `v3`                                                      |
+| Associations API | `v4`                                                      |
+
+Every number above is printed by `npm run probe` from the live portal, so none
+of it has to be taken on trust. Configure your own portal as below and the probe
+will report yours instead.
+
 ---
 
 ## 1. Which account

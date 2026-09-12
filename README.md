@@ -9,7 +9,7 @@ a real CRM, asserts against them, and deletes them.
 
 |                         |                                       |
 | ----------------------- | ------------------------------------- |
-| Unit tests              | **156 passing**                       |
+| Unit tests              | **163 passing**                       |
 | Integration tests       | **48 passing, against a live portal** |
 | Required artefacts      | **27 / 27 verified mechanically**     |
 | Node.js                 | 18, 20 and 22, all green in CI        |
@@ -33,6 +33,73 @@ npm run example:workflow  # the whole integration in one run, self-cleaning
 a contact, creates a deal, associates them, proves the association is
 idempotent, reads both back, updates one, lists contact names, and deletes what
 it made — in about ten seconds.
+
+---
+
+## Submission details
+
+The brief asks the submission to state the portal, the endpoints used and how
+the private app was configured. Here they are.
+
+### Portal
+
+|                      |                                                                   |
+| -------------------- | ----------------------------------------------------------------- |
+| **Portal / hub id**  | `52018022`                                                        |
+| **Private app id**   | `52891293`                                                        |
+| **API base URL**     | `https://api.hubapi.com`                                          |
+| **Authentication**   | Private app access token, sent as `Authorization: Bearer <token>` |
+| **CRM objects API**  | `v3` — the version the brief names                                |
+| **Associations API** | `v4`                                                              |
+
+`npm run probe` prints all of this from the live portal, so the values above can
+be confirmed rather than taken on trust.
+
+### Private app scopes
+
+```
+crm.objects.contacts.read     crm.objects.deals.read     crm.schemas.deals.read
+crm.objects.contacts.write    crm.objects.deals.write    crm.schemas.contacts.read
+```
+
+Configured in **Settings → Integrations → Private Apps → _your app_ → Scopes**.
+Step-by-step instructions, including what to do when a scope appears greyed out,
+are in [`docs/HUBSPOT_SETUP.md`](docs/HUBSPOT_SETUP.md).
+
+### Endpoints used
+
+Every endpoint, with the scope that authorises it and a link to its official
+HubSpot documentation, is catalogued in
+[`docs/API_REFERENCE.md`](docs/API_REFERENCE.md) — seventeen in total, across
+Contacts, Deals, Associations, Pipelines, Properties and token introspection.
+
+That catalogue is not prose: the same data lives in
+[`src/config/scopes.js`](src/config/scopes.js), and a unit test fails the build
+if the documentation and the code ever disagree.
+
+### Libraries used
+
+The brief asks for the modules used to be listed.
+
+**Production — two.**
+
+| Library                                          | Version | Why                                                                                                                                                                                                                          |
+| ------------------------------------------------ | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`axios`](https://www.npmjs.com/package/axios)   | ^1.7.7  | HTTP client. Chosen over `@hubspot/api-client` so every endpoint, payload and query parameter stays visible in source, and so the retry policy the brief requires is ours to implement. Reasoning in `docs/DECISIONS.md` D1. |
+| [`dotenv`](https://www.npmjs.com/package/dotenv) | ^16.4.5 | Loads `.env` into `process.env`. Values already set in the environment win, so CI and shell overrides take precedence.                                                                                                       |
+
+**Development — four.**
+
+| Library                                                                                            | Version | Why                                                                                                |
+| -------------------------------------------------------------------------------------------------- | ------- | -------------------------------------------------------------------------------------------------- |
+| [`eslint`](https://www.npmjs.com/package/eslint)                                                   | ^9.12.0 | Static analysis. Also enforces the descriptive English naming the brief asks for, via `id-length`. |
+| [`prettier`](https://www.npmjs.com/package/prettier)                                               | ^3.3.3  | Formatting, checked in CI.                                                                         |
+| [`@commitlint/cli`](https://www.npmjs.com/package/@commitlint/cli)                                 | ^19.5.0 | Validates commit messages against Conventional Commits.                                            |
+| [`@commitlint/config-conventional`](https://www.npmjs.com/package/@commitlint/config-conventional) | ^19.5.0 | The rule set commitlint extends.                                                                   |
+
+**No test framework.** The 163 unit tests and 48 integration tests run on Node's
+built-in [`node:test`](https://nodejs.org/api/test.html) runner, so the test
+suite adds no dependency at all.
 
 ---
 
@@ -132,7 +199,7 @@ portal's real pipeline and stage ids ready to paste.
 | ----------------------------- | ---------------------------------------------------------------------- |
 | `npm run validate`            | lint + unit tests + requirement matrix                                 |
 | `npm run lint`                | ESLint                                                                 |
-| `npm test`                    | 156 unit tests, no network                                             |
+| `npm test`                    | 163 unit tests, no network                                             |
 | `npm run verify:requirements` | loads every named artefact and prints a PASS/FAIL matrix               |
 | `npm run lint:commits`        | validates commit messages against Conventional Commits                 |
 | `npm run probe`               | live portal: identity, scopes, deal properties, pipelines, rate limits |
@@ -140,21 +207,50 @@ portal's real pipeline and stage ids ready to paste.
 
 ### Examples
 
-| Command                          | Demonstrates                                       |
-| -------------------------------- | -------------------------------------------------- |
-| `npm run example:workflow`       | **everything, end to end, self-cleaning**          |
-| `npm run example:contact-names`  | Section 2.1 — list contact names, paginated        |
-| `npm run example:create-contact` | create a contact                                   |
-| `npm run example:create-deal`    | Section 2.2 — create a deal                        |
-| `npm run example:associate`      | Section 2.3 — associate, idempotently              |
-| `npm run example:sync-contacts`  | idempotent contact sync (`-- --dry-run` supported) |
-| `npm run example:sync-deals`     | idempotent deal sync                               |
-| `npm run example:errors`         | Section 2.4 — every failure class, classified      |
-| `npm run handler`                | the dispatcher's help, listing every operation     |
+Every example is a standalone script, runnable directly:
 
-### Section 1
+```bash
+node src/examples/full-workflow.js            # everything, end to end, self-cleaning
+node src/examples/list-contact-names.js       # Section 2.1
+node src/examples/create-contact.js
+node src/examples/create-deal.js              # Section 2.2
+node src/examples/associate-contact-to-deal.js <contactId> <dealId>   # Section 2.3
+node src/examples/sync-contacts.js  [--dry-run]
+node src/examples/sync-deals.js     [--dry-run]
+node src/examples/error-handling.js           # Section 2.4
+```
 
-`npm run fundamentals:callbacks` · `:async` · `:modules` · `:streams`
+Most accept optional arguments and fall back to sensible run-scoped defaults, so
+each one works with no arguments at all.
+
+The same scripts have npm aliases, which matter only because passing arguments
+through npm needs an extra `--`:
+
+| Alias                            | Equivalent                                       |
+| -------------------------------- | ------------------------------------------------ |
+| `npm run example:workflow`       | `node src/examples/full-workflow.js`             |
+| `npm run example:contact-names`  | `node src/examples/list-contact-names.js`        |
+| `npm run example:create-contact` | `node src/examples/create-contact.js`            |
+| `npm run example:create-deal`    | `node src/examples/create-deal.js`               |
+| `npm run example:associate`      | `node src/examples/associate-contact-to-deal.js` |
+| `npm run example:sync-contacts`  | `node src/examples/sync-contacts.js`             |
+| `npm run example:sync-deals`     | `node src/examples/sync-deals.js`                |
+| `npm run example:errors`         | `node src/examples/error-handling.js`            |
+
+`npm run handler` prints the dispatcher's help, listing every operation with the
+requirement it satisfies.
+
+### Section 1 — Node.js fundamentals
+
+These need **no HubSpot credentials at all**, so they run immediately after
+`npm install`:
+
+```bash
+node src/fundamentals/callbacks.js     # or: npm run fundamentals:callbacks
+node src/fundamentals/asyncAwait.js    #     npm run fundamentals:async
+node src/fundamentals/main.js          #     npm run fundamentals:modules
+node src/utils/streams.js              #     npm run fundamentals:streams
+```
 
 ---
 
