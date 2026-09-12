@@ -14,18 +14,84 @@
 | ------------ | ------------------------------- | ----------- |
 | 1            | `chore/scaffolding`             | merged      |
 | 2            | `feat/config-and-logging`       | merged      |
-| 3            | `feat/fundamentals`             | in progress |
-| 4            | `feat/http-client-and-errors`   | not started |
+| 3            | `feat/fundamentals`             | merged      |
+| 4            | `feat/http-client-and-errors`   | in progress |
 | 5            | `feat/contacts`                 | not started |
 | 6            | `feat/deals`                    | not started |
 | 7            | `feat/associations`             | not started |
 | 8            | `feat/sync`                     | not started |
 | 9            | `feat/api-handler-and-examples` | not started |
 
-**Requirement coverage:** 0 / 30 verified — run `npm run verify:requirements`.
+**Requirement coverage:** 8 / 27 artefacts — run `npm run verify:requirements`.
 
 **Current blocker:** no valid `pat-` access token available. See entry
 _2026-09-11 · Credential mismatch_ below.
+
+---
+
+## 2026-09-11 · PR 4 — HTTP client, error handling, validation, pagination
+
+The technical core of Section 2. Everything here is exercised by unit tests
+against fabricated responses; the live-portal evidence follows once a token is
+available.
+
+**Done**
+
+- `src/errors/HubSpotApiError.js` — one error type for every failure mode, with
+  a decided `kind` and an `isRetryable` that callers act on without inspecting
+  `error.response?.status ?? error.code`.
+- `src/utils/handleHubSpotErrors.js` — normalisation, retry loop and backoff.
+  Full jitter, `Retry-After` honoured and capped.
+- `src/utils/validateHubSpotPayload.js` — validation plus the deal property
+  alias translation.
+- `src/utils/paginate.js` — cursor pagination as an async generator, with a
+  repeated-cursor guard and batch chunking.
+- `src/clients/hubSpotClient.js` — the single module that speaks HTTP to
+  HubSpot. Lazy axios instance, rate-limit header observation, every request
+  wrapped in the retry policy.
+- 79 new tests. Total 145 passing.
+
+**Verified**
+
+- `npm run lint` clean, `npm test` 145/145.
+- Requirement matrix 8 / 27.
+
+**Decisions taken during the work**
+
+- _Validation failures reuse `HubSpotApiError` with kind `VALIDATION`_ rather
+  than introducing a third error type. A locally-detected bad payload and a
+  remotely-rejected one are both non-retryable and both fixed in the same
+  place, so a caller's `catch` should not have to distinguish them.
+- _Full jitter, not fixed backoff._ HubSpot's burst limit is a rolling
+  ten-second window shared by every caller using the same app. Fixed delays
+  make throttled callers retry in lockstep and re-trigger the identical limit.
+- _`Retry-After` is capped even though HubSpot supplies it._ A misconfigured
+  proxy returning `Retry-After: 86400` must not park the process for a day.
+- _Pagination is an async generator, not a function returning an array._ A
+  portal with fifty thousand contacts would otherwise need all fifty thousand
+  in memory before the caller saw the first one. `collectAllPages` exists for
+  when an array genuinely is wanted, so that choice is visible at the call site.
+- _The client caches its axios instance lazily_, for the same reason the
+  configuration validates lazily: the requirement matrix loads every module,
+  and constructing a client at import would demand a token in CI.
+
+**Defects found and fixed during the work**
+
+- _A misleading validation message._ `validateRecordId(-1)` reported that the
+  value "must be a non-empty string". True, but useless: the caller passed a
+  number and was being sent to fix the wrong thing. Numbers are now handled
+  before the string check.
+- _An over-strict lint rule._ `require-await` rejected test doubles standing in
+  for network calls. They are correctly `async` — they must return a Promise to
+  match the real signature — even with nothing to await. Relaxed for tests only.
+
+**Notes**
+
+- Scope guidance corrected. The initial plan listed `crm.associations.read`
+  and `crm.associations.write`. The v4 association endpoints are authorised by
+  the object scopes of both objects involved, so `crm.objects.contacts.write`
+  plus `crm.objects.deals.write` covers `associateContactToDeal`. `npm run
+probe` verifies this against the live portal.
 
 ---
 
