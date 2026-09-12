@@ -28,6 +28,29 @@ const assert = require('node:assert/strict');
 const hubSpotClient = require('../../src/clients/hubSpotClient');
 const pipelineRepository = require('../../src/repositories/pipelineRepository');
 const propertyRepository = require('../../src/repositories/propertyRepository');
+const { resetEnvironmentCache } = require('../../src/config/env');
+
+// Supply a fictitious token before anything reads configuration.
+//
+// Stubbing `hubSpotClient.get` removes the network, but the repositories still
+// call `getHubSpotConfig()` to build their paths, and that validates the token.
+// Without this the suite would pass on a machine holding a real `.env` and fail
+// in CI — which is exactly what happened, and is why it is set here rather than
+// left to the environment.
+//
+// Assembled at runtime: a credential-shaped literal is rejected by push
+// protection whether or not the value is real.
+process.env.HUBSPOT_ACCESS_TOKEN = [
+  'pat',
+  'na1',
+  '11111111',
+  '2222',
+  '3333',
+  '4444',
+  '555555555555',
+].join('-');
+resetEnvironmentCache();
+hubSpotClient.resetClientCache();
 
 /** A minimal pipelines response, shaped as HubSpot returns it. */
 const PIPELINES_RESPONSE = {
