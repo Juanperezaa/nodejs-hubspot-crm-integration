@@ -49,7 +49,17 @@ module.exports = {
         'repo',
       ],
     ],
-    'subject-case': [2, 'always', 'lower-case'],
+    // `subject-case` is disabled deliberately.
+    //
+    // The default `lower-case` rule forbids any capital in the subject, which
+    // in this domain makes it impossible to write the proper nouns that appear
+    // in almost every commit: HubSpot, API, CRM, Node. Rewriting them as
+    // "hubspot" and "api" to satisfy a linter would degrade the very thing the
+    // rule exists to protect — readability.
+    //
+    // Sentence case remains the convention; it is enforced by review rather
+    // than by a rule that cannot distinguish a proper noun from shouting.
+    'subject-case': [0],
     'subject-full-stop': [2, 'never', '.'],
     'header-max-length': [2, 'always', 72],
     'body-max-line-length': [2, 'always', 100],
