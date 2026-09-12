@@ -10,26 +10,77 @@
 
 ## Status at a glance
 
-| Pull request | Scope                           | State       |
-| ------------ | ------------------------------- | ----------- |
-| 1            | `chore/scaffolding`             | merged      |
-| 2            | `feat/config-and-logging`       | merged      |
-| 3            | `feat/fundamentals`             | merged      |
-| 4            | `feat/http-client-and-errors`   | merged      |
-| 5            | `feat/contacts`                 | in progress |
-| 6            | `feat/deals`                    | not started |
-| 7            | `feat/associations`             | not started |
-| 8            | `feat/sync`                     | not started |
-| 9            | `feat/api-handler-and-examples` | not started |
+| Pull request | Scope                            | State  |
+| ------------ | -------------------------------- | ------ |
+| 1            | `chore/scaffolding`              | merged |
+| 2            | `feat/config-and-logging`        | merged |
+| 3            | `feat/fundamentals`              | merged |
+| 4            | `feat/http-client-and-errors`    | merged |
+| 5            | `docs/hubspot-setup` (unplanned) | merged |
+| 6            | `docs/scope-audit` (unplanned)   | merged |
+| 7            | `feat/contacts`                  | merged |
+| 8            | `feat/deals`                     | merged |
+| 9            | `feat/associations`              | merged |
+| 10           | `feat/sync`                      | merged |
+| 11           | `feat/api-handler-and-docs`      | final  |
 
-**Requirement coverage:** 15 / 27 artefacts — run `npm run verify:requirements`.
+**Requirement coverage:** 27 / 27 artefacts — run `npm run verify:requirements`.
 
 **Scope coverage:** 17 / 17 endpoints authorised by the six requested scopes —
 run `npm run probe` against a live token, or `npm test` for the computed proof.
 
-**Current blocker:** no valid `pat-` access token available. The cause is now
-understood and is a portal permissions issue, not a missing credential. See
-_2026-09-11 · Scope permissions blocked in the shared portal_ below.
+**No blockers.** The portal is connected and every requirement is implemented
+and verified against it.
+
+---
+
+## 2026-09-12 - PR 11: handler, examples and documentation
+
+The final slice. Requirement coverage reaches **27 / 27**.
+
+**Done**
+
+- `hubSpotApiHandler` (R18). Executable scripts rather than Express: a reviewer
+  clones, runs `npm install`, and exercises a real operation in one command.
+  The operation table is data, so `--help` is generated from the same source
+  that dispatches and the two cannot drift.
+- Eight runnable examples, one per section of the brief, including
+  `07-error-handling.js` which provokes every failure class and prints how it
+  is classified, and `08-full-workflow.js` which exercises every layer against
+  the portal in about ten seconds and cleans up after itself.
+- `docs/CONTEXT.md` - the system explained: domain, layers, one request end to
+  end, and where failures go.
+- `docs/ARCHITECTURE.md` - why the structure is shaped this way and what it
+  buys, including what is deliberately absent.
+- `docs/ERROR_HANDLING.md` - the full taxonomy and retry policy.
+- `README.md` rewritten.
+- `docs/REQUIREMENTS_MATRIX.md` generated from the verifier.
+- CI switched to `verify:requirements:strict`. The matrix was a progress bar
+  while the project was being built; now that coverage is complete it is a gate.
+
+**Verified**
+
+- `npm test` 163/163, `npm run test:integration` 48/48 against the live portal.
+- `npm run verify:requirements:strict` 27/27, exit 0.
+- `npm run example:workflow` executed end to end against hub 52018022.
+
+**A documentation claim that was wrong**
+
+`README.md` and `ARCHITECTURE.md` both asserted that `grep -r "crm/v3" src/`
+returns hits only in `config/`. Running it returned seven files.
+
+The _substance_ held - path construction really does happen only in
+`config/hubspot.config.js` - but the evidence offered did not support it: the
+other hits are documentation comments quoting the brief, the endpoint catalogue
+in `config/scopes.js`, and one error-guidance string.
+
+Rather than reword the claim, it was made executable.
+`tests/unit/architecture.test.js` now fails the build if any module outside
+`config/` interpolates an endpoint path, if dependencies run upward, if
+anything but the client builds an `Authorization` header, if a fundamentals
+file grows a dependency on HubSpot configuration, or if a source file loses
+`'use strict'`. Seven invariants, because a claim in a document decays quietly
+while a failing test does not.
 
 ---
 
