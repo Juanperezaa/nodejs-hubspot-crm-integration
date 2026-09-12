@@ -63,6 +63,62 @@ function loadContactSource(source) {
 }
 
 /**
+ * Splits source records into those HubSpot would accept and those it would not.
+ *
+ * Rejections are written into the report rather than thrown, because a single
+ * malformed address in a file of fifty must not discard the other forty-nine.
+ * Validating locally first also means a bad record costs no request and no
+ * rate-limit budget.
+ *
+ * @param {Array<object>} records Raw records from the source.
+ * @param {object} report Mutated with a failure per rejected record.
+ * @returns {Array<Record<string, unknown>>} Validated, normalised properties.
+ */
+function partitionValidRecords(records, report) {
+  const validRecords = [];
+
+  for (const record of records) {
+    try {
+      const { properties } = validateContactPayload({ properties: record });
+      validRecords.push(properties);
+    } catch (error) {
+      recordFailure(report, record?.email ?? '(no email)', error);
+    }
+  }
+
+  return validRecords;
+}
+
+/**
+ * Upserts validated records, one batch per hundred.
+ *
+ * A batch that HubSpot rejects outright is reported against every record in it,
+ * because the rejection was of the request rather than of any single entry —
+ * attributing it to one record would be a guess.
+ *
+ * @param {Array<Record<string, unknown>>} validRecords
+ * @param {Map<string, object>} existingByEmail Records that existed beforehand.
+ * @param {object} report Mutated with one outcome per record.
+ * @returns {Promise<void>}
+ */
+async function upsertInBatches(validRecords, existingByEmail, report) {
+  for (const batch of chunkForBatch(validRecords, PAGINATION_LIMITS.MAX_BATCH_INPUTS)) {
+    try {
+      const { results } = await contactRepository.upsertContactsByEmail(batch);
+
+      for (const result of results) {
+        const email = result.properties?.email;
+        recordSuccess(report, email, result.id, existingByEmail.has(email) ? 'updated' : 'created');
+      }
+    } catch (error) {
+      for (const properties of batch) {
+        recordFailure(report, properties.email, error);
+      }
+    }
+  }
+}
+
+/**
  * Synchronises contacts into HubSpot, creating or updating as required.
  *
  * @param {string|Array<object>} [source] JSON file path or an array of records.
@@ -79,16 +135,7 @@ async function syncContactsWithHubSpot(source = 'data/contacts.seed.json', optio
   const report = createSyncReport(`contacts from ${description}${dryRun ? ' (dry run)' : ''}`);
 
   // --- 1. Validate locally, so a bad record costs no request ---------------
-  const validRecords = [];
-  for (const record of records) {
-    const recordKey = record?.email ?? '(no email)';
-    try {
-      const { properties } = validateContactPayload({ properties: record });
-      validRecords.push(properties);
-    } catch (error) {
-      recordFailure(report, recordKey, error);
-    }
-  }
+  const validRecords = partitionValidRecords(records, report);
 
   if (validRecords.length === 0) {
     logger.warn('Contact sync found no valid records', { source: description });
@@ -120,22 +167,7 @@ async function syncContactsWithHubSpot(source = 'data/contacts.seed.json', optio
   }
 
   // --- 3. Upsert, batch by batch -------------------------------------------
-  for (const batch of chunkForBatch(validRecords, PAGINATION_LIMITS.MAX_BATCH_INPUTS)) {
-    try {
-      const { results } = await contactRepository.upsertContactsByEmail(batch);
-
-      for (const result of results) {
-        const email = result.properties?.email;
-        recordSuccess(report, email, result.id, existingByEmail.has(email) ? 'updated' : 'created');
-      }
-    } catch (error) {
-      // A whole batch failing is reported against every record in it, because
-      // HubSpot rejected the request rather than any individual entry.
-      for (const properties of batch) {
-        recordFailure(report, properties.email, error);
-      }
-    }
-  }
+  await upsertInBatches(validRecords, existingByEmail, report);
 
   const finalReport = finaliseSyncReport(report, startedAtMs);
 
