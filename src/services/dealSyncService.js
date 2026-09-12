@@ -132,6 +132,74 @@ async function buildDealNameIndex(options = {}) {
 }
 
 /**
+ * Rejects a source record that could not produce a usable deal.
+ *
+ * Separate from `validateHubSpotPayload`, which validates what HubSpot will
+ * accept. This validates what the *synchronisation* needs, and the requirement
+ * is stricter: `dealname` is the correlation key, so a record without one
+ * cannot be reconciled on a later run and would be duplicated every time.
+ *
+ * @param {object} record A record from the source file.
+ * @throws {TypeError} When the record cannot be synchronised.
+ * @returns {void}
+ */
+function assertSourceDealIsUsable(record) {
+  if (typeof record?.dealname !== 'string' || record.dealname.trim() === '') {
+    throw new TypeError('Each source deal must carry a non-empty "dealname".');
+  }
+}
+
+/**
+ * Creates or updates one deal, and records the outcome.
+ *
+ * The decision is a lookup in the correlation index, not a request: the index
+ * was built from the list endpoint, which reflects writes immediately.
+ *
+ * @param {object} record The source record.
+ * @param {Map<string, object>} index Correlation index, mutated on create.
+ * @param {{dryRun: boolean, report: object}} context
+ * @returns {Promise<string|undefined>} The record id, or undefined on a dry run.
+ */
+async function reconcileDeal(record, index, context) {
+  const { dryRun, report } = context;
+  const existing = index.get(record.dealname);
+
+  if (dryRun) {
+    recordSuccess(
+      report,
+      record.dealname,
+      existing?.id ?? '(would be created)',
+      existing ? 'updated' : 'created'
+    );
+    return undefined;
+  }
+
+  const changedProperties = {
+    amount: record.amount,
+    ...(record.description ? { description: record.description } : {}),
+  };
+
+  if (existing) {
+    const updated = await hubSpotService.updateHubSpotDeal(existing.id, changedProperties);
+    recordSuccess(report, record.dealname, updated.id, 'updated');
+    return updated.id;
+  }
+
+  const created = await hubSpotService.createHubSpotDeal(record.dealname, record.amount, {
+    // The pipeline was verified once for the whole run, so verifying per deal
+    // would spend a request repeating an answer already known.
+    verifyPipeline: false,
+    additionalProperties: record.description ? { description: record.description } : {},
+  });
+
+  // Added to the index so a name repeated inside the source file reconciles
+  // against the record this run just created, rather than creating it twice.
+  index.set(record.dealname, created);
+  recordSuccess(report, record.dealname, created.id, 'created');
+  return created.id;
+}
+
+/**
  * Synchronises deals into HubSpot, creating or updating as required.
  *
  * When a source record carries `contactEmail`, the deal is associated with that
@@ -179,49 +247,16 @@ async function syncDealsWithHubSpot(source = 'data/deals.seed.json', options = {
     const dealName = record?.dealname ?? '(no dealname)';
 
     try {
-      if (typeof record?.dealname !== 'string' || record.dealname.trim() === '') {
-        throw new TypeError('Each source deal must carry a non-empty "dealname".');
-      }
+      assertSourceDealIsUsable(record);
 
-      const existing = index.get(record.dealname);
+      const dealId = await reconcileDeal(record, index, { dryRun, report });
 
-      if (dryRun) {
-        recordSuccess(
-          report,
-          dealName,
-          existing?.id ?? '(would be created)',
-          existing ? 'updated' : 'created'
-        );
-        continue;
-      }
-
-      let dealId;
-      if (existing) {
-        const updated = await hubSpotService.updateHubSpotDeal(existing.id, {
-          amount: record.amount,
-          ...(record.description ? { description: record.description } : {}),
-        });
-        dealId = updated.id;
-        recordSuccess(report, dealName, dealId, 'updated');
-      } else {
-        const created = await hubSpotService.createHubSpotDeal(record.dealname, record.amount, {
-          // The pipeline was verified once above, so verifying per deal would
-          // spend a request repeating an answer already known.
-          verifyPipeline: false,
-          additionalProperties: record.description ? { description: record.description } : {},
-        });
-        dealId = created.id;
-        // Added to the index so a duplicated name inside the source file is
-        // reconciled against the record this run just created, rather than
-        // creating it twice.
-        index.set(record.dealname, created);
-        recordSuccess(report, dealName, dealId, 'created');
-      }
-
-      if (associateContacts && record.contactEmail) {
+      if (!dryRun && associateContacts && record.contactEmail) {
         await associateDealWithContact(dealId, record.contactEmail, report, dealName);
       }
     } catch (error) {
+      // Collected rather than thrown: one malformed record must not discard
+      // the rest of the file.
       recordFailure(report, dealName, error);
     }
   }
