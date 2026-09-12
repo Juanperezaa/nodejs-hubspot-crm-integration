@@ -20,6 +20,9 @@
  */
 
 const contactRepository = require('../repositories/contactRepository');
+const dealRepository = require('../repositories/dealRepository');
+const pipelineRepository = require('../repositories/pipelineRepository');
+const { getHubSpotConfig } = require('../config/hubspot.config');
 const { HubSpotApiError, FAILURE_KINDS } = require('../errors/HubSpotApiError');
 const { logger } = require('../utils/logger');
 const { validateRecordId } = require('../utils/validateHubSpotPayload');
@@ -241,11 +244,190 @@ async function deleteHubSpotContact(contactId, options = {}) {
   return { contactId: validatedId, archived: true, existedBeforeDelete };
 }
 
+// ---------------------------------------------------------------------------
+// Deals
+// ---------------------------------------------------------------------------
+
+/**
+ * Lists deals, with pagination.
+ *
+ * Brief: "getHubSpotDeals — lists deals (with pagination)".
+ *
+ * Returns one page plus its cursor by default. `all: true` traverses every page
+ * and returns a flat array; that is opt-in because reading a whole portal into
+ * memory should be a deliberate choice, visible at the call site.
+ *
+ * @param {object} [options]
+ * @param {string} [options.after] Cursor from a previous call.
+ * @param {number} [options.limit] Page size, capped at 100.
+ * @param {string[]} [options.properties]
+ * @param {string[]} [options.associations] Object types whose associations to include.
+ * @param {boolean} [options.all] Traverse every page instead of returning one.
+ * @returns {Promise<{results: object[], nextCursor: string|undefined, hasMore: boolean}>}
+ */
+async function getHubSpotDeals(options = {}) {
+  if (options.all) {
+    const results = [];
+    for await (const deal of dealRepository.streamDeals(options)) {
+      results.push(deal);
+    }
+    logger.info('Listed every deal', { returned: results.length });
+    return { results, nextCursor: undefined, hasMore: false };
+  }
+
+  const page = await dealRepository.findDealsPage(options);
+  logger.info('Listed deals', { returned: page.results.length, hasMore: page.hasMore });
+  return page;
+}
+
+/**
+ * Creates a deal.
+ *
+ * Brief, Section 2.2: "Implement createHubSpotDeal(dealName, amount) making a
+ * real POST to /crm/v3/objects/deals with properties.dealname,
+ * properties.amount, hs_pipeline, hs_stage. Allow passing pipeline/stage via
+ * env vars."
+ *
+ * The positional signature is the brief's and is kept verbatim. Pipeline and
+ * stage default to `HUBSPOT_PIPELINE_ID` and `HUBSPOT_STAGE_ID`, which is what
+ * "allow passing pipeline/stage via env vars" asks for, and either may be
+ * overridden per call.
+ *
+ * **On `hs_pipeline` and `hs_stage`.** The brief names those two properties.
+ * They belong to the Ticket object; the Deal object uses `pipeline` and
+ * `dealstage`, and sending the brief's spelling returns
+ * `400 PROPERTY_DOESNT_EXIST`. Confirmed against a live portal, where none of
+ * `hs_pipeline`, `hs_stage` or `hs_pipeline_stage` appears among its 206 deal
+ * properties. `validateHubSpotPayload` accepts either spelling and translates,
+ * so HubSpot receives the name it actually defines. Decision D5.
+ *
+ * The payload below is deliberately written in the brief's spelling, so the
+ * translation layer is exercised on this project's primary path rather than
+ * only in its tests.
+ *
+ * Pipeline and stage are verified before the request unless `verifyPipeline`
+ * is disabled. HubSpot's rejection for an unknown stage names the *property*
+ * rather than the *value*, so it reads as though `dealstage` itself were
+ * wrong when the real mistake is usually a display label supplied where an
+ * internal id was wanted.
+ *
+ * @param {string} dealName Value for `properties.dealname`.
+ * @param {number|string} amount Value for `properties.amount`.
+ * @param {object} [options]
+ * @param {string} [options.pipeline] Internal pipeline id. Defaults to `HUBSPOT_PIPELINE_ID`.
+ * @param {string} [options.stage] Internal stage id. Defaults to `HUBSPOT_STAGE_ID`.
+ * @param {Record<string, unknown>} [options.additionalProperties] Any other deal properties.
+ * @param {boolean} [options.verifyPipeline] Check the pipeline and stage first. Default true.
+ * @returns {Promise<object>} The created record, including its id.
+ */
+async function createHubSpotDeal(dealName, amount, options = {}) {
+  const config = getHubSpotConfig();
+
+  const pipelineId = options.pipeline ?? config.defaultPipelineId;
+  const stageId = options.stage ?? config.defaultStageId;
+  const { verifyPipeline = true, additionalProperties = {} } = options;
+
+  if (verifyPipeline) {
+    await pipelineRepository.assertPipelineAndStageExist(pipelineId, stageId);
+  }
+
+  const created = await dealRepository.createDeal({
+    ...additionalProperties,
+    dealname: dealName,
+    amount,
+    hs_pipeline: pipelineId,
+    hs_stage: stageId,
+  });
+
+  logger.info('Created deal', {
+    dealId: created.id,
+    dealname: created.properties?.dealname,
+    pipeline: created.properties?.pipeline,
+    dealstage: created.properties?.dealstage,
+  });
+
+  return created;
+}
+
+/**
+ * Updates a deal.
+ *
+ * Brief: "updateHubSpotDeal — updates a deal".
+ *
+ * `PATCH` merges, so a partial payload leaves the rest of the record alone.
+ * The brief's property spellings are accepted here too.
+ *
+ * @param {string|number} dealId
+ * @param {Record<string, unknown>} properties
+ * @returns {Promise<object>}
+ */
+async function updateHubSpotDeal(dealId, properties) {
+  const updated = await dealRepository.updateDeal(dealId, properties);
+
+  logger.info('Updated deal', {
+    dealId: updated.id,
+    changedProperties: Object.keys(properties),
+  });
+
+  return updated;
+}
+
+/**
+ * Deletes (archives) a deal.
+ *
+ * Brief: "deleteHubSpotDeal — deletes a deal".
+ *
+ * Reports acceptance rather than claiming a removal, for the same reason as
+ * `deleteHubSpotContact`: HubSpot's delete succeeds for a live record, an
+ * already-archived one, and an id that never existed, so the API cannot say
+ * whether anything was removed. `existedBeforeDelete` is populated only when a
+ * caller opts into the extra read that can establish it.
+ *
+ * @param {string|number} dealId
+ * @param {{confirmExistence?: boolean}} [options]
+ * @returns {Promise<{dealId: string, archived: boolean, existedBeforeDelete: boolean|undefined}>}
+ */
+async function deleteHubSpotDeal(dealId, options = {}) {
+  const { confirmExistence = false } = options;
+  const validatedId = validateRecordId(dealId, 'dealId');
+
+  let existedBeforeDelete;
+  if (confirmExistence) {
+    try {
+      await dealRepository.findDealById(validatedId, { properties: ['dealname'] });
+      existedBeforeDelete = true;
+    } catch (error) {
+      if (error instanceof HubSpotApiError && error.kind === FAILURE_KINDS.NOT_FOUND) {
+        existedBeforeDelete = false;
+      } else {
+        throw error;
+      }
+    }
+  }
+
+  try {
+    await dealRepository.deleteDeal(validatedId);
+  } catch (error) {
+    if (error instanceof HubSpotApiError && error.kind === FAILURE_KINDS.NOT_FOUND) {
+      logger.info('Deal was already absent', { dealId: validatedId });
+      return { dealId: validatedId, archived: false, existedBeforeDelete: false };
+    }
+    throw error;
+  }
+
+  logger.info('Archived deal', { dealId: validatedId, existedBeforeDelete });
+  return { dealId: validatedId, archived: true, existedBeforeDelete };
+}
+
 module.exports = {
   getHubSpotContactNames,
   getHubSpotContacts,
   createHubSpotContact,
   updateHubSpotContact,
   deleteHubSpotContact,
+  getHubSpotDeals,
+  createHubSpotDeal,
+  updateHubSpotDeal,
+  deleteHubSpotDeal,
   buildFullName,
 };
