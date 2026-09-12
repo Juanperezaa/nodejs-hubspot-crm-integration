@@ -43,8 +43,21 @@ jobs:
       - name: Lint
         run: npm run lint
 
-      - name: Unit tests
+      # Run with the credential explicitly cleared rather than merely absent.
+      #
+      # The unit suite must be hermetic: a test that reads HUBSPOT_ACCESS_TOKEN
+      # from the environment passes on a developer's machine and fails here,
+      # which is a slow and confusing way to discover the problem. It happened
+      # once. Clearing the variable by name states the guarantee instead of
+      # relying on CI happening not to have a .env file.
+      #
+      # A test that needs a token must supply its own fictitious one.
+      - name: Unit tests (must not require credentials)
         run: npm test
+        env:
+          HUBSPOT_ACCESS_TOKEN: ''
+          HUBSPOT_PORTAL_ID: ''
+          HUBSPOT_ALLOW_WRITE: 'false'
 
       # Strict mode: the build fails if any artefact the brief names is missing
       # or does not export what it should. Reporting mode was used while the
