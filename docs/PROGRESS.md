@@ -24,9 +24,72 @@
 
 **Requirement coverage:** 8 / 27 artefacts — run `npm run verify:requirements`.
 
+**Scope coverage:** 17 / 17 endpoints authorised by the six requested scopes —
+run `npm run probe` against a live token, or `npm test` for the computed proof.
+
 **Current blocker:** no valid `pat-` access token available. The cause is now
 understood and is a portal permissions issue, not a missing credential. See
 _2026-09-11 · Scope permissions blocked in the shared portal_ below.
+
+---
+
+## 2026-09-11 · Scope audit — confirming nothing else is needed
+
+Prompted by a direct question: are six scopes actually enough? Answered by
+auditing every endpoint against the official documentation rather than by
+reasoning from the function list.
+
+**Done**
+
+- `src/config/scopes.js` — all seventeen endpoints the project calls,
+  catalogued with the scopes that authorise each, the functions that depend on
+  them, and `auditScopeCoverage` to compute coverage for any token.
+- `scripts/probe-portal.js` rewired to that table. It now reports _which
+  operations_ an absent scope blocks, rather than merely that a scope is
+  absent.
+- `docs/API_REFERENCE.md` — the endpoint catalogue with official documentation
+  URLs, which closes requirement R26.
+- `tests/unit/scopes.test.js` — 11 assertions. Total 156 passing.
+
+**Verified**
+
+| Token holds                          | Endpoints permitted                |
+| ------------------------------------ | ---------------------------------- |
+| All six requested scopes             | 17 / 17                            |
+| The four `crm.objects.*` scopes only | **17 / 17**                        |
+| Read scopes only                     | 9 / 17                             |
+| No scopes                            | 1 / 17 — token introspection alone |
+
+**Findings**
+
+- _Six scopes suffice, and four would._ HubSpot requires "**one of**" the
+  listed scopes per endpoint, so `crm.objects.deals.read` alone already
+  authorises both Properties and Pipelines. The two `crm.schemas.*.read`
+  entries are defence in depth, kept because they cost nothing.
+- _Associations need no scope of their own,_ confirmed against the official
+  guide. A test now fails if any association entry ever lists a scope
+  containing "association".
+- _Token introspection needs no scope at all._ It authenticates with the very
+  token it reports on.
+
+**Design change the audit forced**
+
+`syncDealsWithHubSpot` was to correlate existing deals through a custom
+property. Creating one requires `crm.schemas.deals.write` — a seventh scope —
+and leaves a property behind on the operator's Deal schema permanently, unlike
+the records this project creates and then deletes.
+
+Changed to correlate on `dealname` through the Search API, which is already
+covered. The trade-off is stated rather than hidden: renaming a seeded deal in
+HubSpot and re-running the sync creates a second deal instead of updating the
+first. With a fixed seed file that cannot occur. Recorded as decision **D11**.
+
+**Note on modelling**
+
+The requirement is `anyOf`, not a flat list. A required-list model would have
+reported `crm.schemas.deals.read` as missing even when `crm.objects.deals.read`
+already authorised the same call — a false alarm that would have sent the
+operator back to the scope picker for nothing. Recorded as **D12**.
 
 ---
 
