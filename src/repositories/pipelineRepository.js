@@ -62,24 +62,6 @@ async function findPipelines(objectType = OBJECT_TYPES.DEALS, options = {}) {
 }
 
 /**
- * Reads a single pipeline by id.
- *
- * @param {string} pipelineId
- * @param {string} [objectType]
- * @returns {Promise<object>}
- */
-async function findPipelineById(pipelineId, objectType = OBJECT_TYPES.DEALS) {
-  const config = getHubSpotConfig();
-
-  const pipeline = await hubSpotClient.get(
-    config.paths.pipeline(objectType, pipelineId),
-    undefined,
-    { operationName: `read ${objectType} pipeline` }
-  );
-  return pipeline;
-}
-
-/**
  * Confirms that a pipeline and stage pair exists, before a deal is created.
  *
  * The reason this is worth a request: HubSpot's rejection for an unknown stage
@@ -144,7 +126,6 @@ function resetPipelineCache() {
 
 module.exports = {
   findPipelines,
-  findPipelineById,
   assertPipelineAndStageExist,
   resetPipelineCache,
 };
