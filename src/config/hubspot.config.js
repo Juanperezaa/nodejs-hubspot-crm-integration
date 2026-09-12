@@ -38,11 +38,6 @@ const ASSOCIATION_TYPE_IDS = Object.freeze({
   DEAL_TO_CONTACT: 3,
 });
 
-const ASSOCIATION_CATEGORIES = Object.freeze({
-  HUBSPOT_DEFINED: 'HUBSPOT_DEFINED',
-  USER_DEFINED: 'USER_DEFINED',
-});
-
 /**
  * Deal property aliases.
  *
@@ -68,7 +63,6 @@ const DEAL_PROPERTY_ALIASES = Object.freeze({
 
 /** HTTP status codes that are worth retrying, and those that never are. */
 const RETRYABLE_STATUS_CODES = Object.freeze([429, 500, 502, 503, 504]);
-const NON_RETRYABLE_AUTH_STATUS_CODES = Object.freeze([401, 403]);
 
 /** Node socket-level failures that indicate a transient transport fault. */
 const RETRYABLE_NETWORK_CODES = Object.freeze([
@@ -179,10 +173,8 @@ module.exports = {
   getHubSpotConfig,
   OBJECT_TYPES,
   ASSOCIATION_TYPE_IDS,
-  ASSOCIATION_CATEGORIES,
   DEAL_PROPERTY_ALIASES,
   RETRYABLE_STATUS_CODES,
-  NON_RETRYABLE_AUTH_STATUS_CODES,
   RETRYABLE_NETWORK_CODES,
   PAGINATION_LIMITS,
 };

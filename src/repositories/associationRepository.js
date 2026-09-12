@@ -23,7 +23,6 @@ const {
   getHubSpotConfig,
   OBJECT_TYPES,
   ASSOCIATION_TYPE_IDS,
-  ASSOCIATION_CATEGORIES,
 } = require('../config/hubspot.config');
 const { validateRecordId } = require('../utils/validateHubSpotPayload');
 
@@ -52,44 +51,6 @@ async function createDefaultAssociation(fromObjectType, fromRecordId, toObjectTy
     ),
     undefined,
     { operationName: `associate ${fromObjectType} to ${toObjectType}` }
-  );
-  return created;
-}
-
-/**
- * Creates an association with an explicit type.
- *
- * Needed when the relationship is not the default one — a custom label, or one
- * of HubSpot's own typed relationships. The body is an array because a single
- * request may establish several types at once.
- *
- * @param {string} fromObjectType
- * @param {string|number} fromRecordId
- * @param {string} toObjectType
- * @param {string|number} toRecordId
- * @param {number} associationTypeId
- * @param {string} [associationCategory]
- * @returns {Promise<object>}
- */
-async function createLabelledAssociation(
-  fromObjectType,
-  fromRecordId,
-  toObjectType,
-  toRecordId,
-  associationTypeId,
-  associationCategory = ASSOCIATION_CATEGORIES.HUBSPOT_DEFINED
-) {
-  const config = getHubSpotConfig();
-
-  const created = await hubSpotClient.put(
-    config.paths.associationLabelled(
-      fromObjectType,
-      validateRecordId(fromRecordId, 'fromRecordId'),
-      toObjectType,
-      validateRecordId(toRecordId, 'toRecordId')
-    ),
-    [{ associationCategory, associationTypeId }],
-    { operationName: `associate ${fromObjectType} to ${toObjectType} with a type` }
   );
   return created;
 }
@@ -162,7 +123,6 @@ async function removeAssociations(fromObjectType, fromRecordId, toObjectType, to
 
 module.exports = {
   createDefaultAssociation,
-  createLabelledAssociation,
   findAssociations,
   isAssociated,
   removeAssociations,
