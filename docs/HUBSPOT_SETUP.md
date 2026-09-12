@@ -112,6 +112,20 @@ crm.schemas.contacts.read
 | `crm.schemas.deals.read`     | `pipelineRepository`, `propertyRepository` — required by the brief's mandatory endpoint list      |
 | `crm.schemas.contacts.read`  | Contact property inspection                                                                       |
 
+### Four of these six are strictly necessary
+
+The two `crm.schemas.*.read` entries are redundant: because HubSpot requires
+"one of" the listed scopes, `crm.objects.deals.read` alone already authorises
+both the Properties and the Pipelines endpoints. They are requested anyway —
+they cost nothing, HubSpot lists them first for those endpoints, and trading a
+real failure risk for minimal-privilege purism is a bad exchange under a
+deadline.
+
+This is measured, not assumed. `auditScopeCoverage` in
+[`src/config/scopes.js`](../src/config/scopes.js) computes it, and
+`tests/unit/scopes.test.js` asserts that the four object scopes alone cover all
+seventeen catalogued endpoints.
+
 ### Associations need no scope of their own
 
 The v4 association endpoints are authorised by the **object scopes of both
