@@ -176,7 +176,7 @@ vocabulary meets an internally coherent one.
 
 | Suite                | Tests | Needs a network     |
 | -------------------- | ----- | ------------------- |
-| `tests/unit/`        | 156   | no                  |
+| `tests/unit/`        | 163   | no                  |
 | `tests/integration/` | 48    | yes — a real portal |
 
 The split is not arbitrary. Unit tests cover what is decidable without HubSpot:
