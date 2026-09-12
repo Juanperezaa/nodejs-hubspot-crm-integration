@@ -272,6 +272,53 @@ async function upsertContactsByEmail(contactProperties) {
 }
 
 /**
+ * Reads contacts in batches, keyed on a unique property.
+ *
+ * Used by `syncContactsWithHubSpot` to learn which records already exist
+ * before upserting, which is what lets the sync report created and updated
+ * counts truthfully. The upsert response does not distinguish the two — HubSpot
+ * returns the same record shape either way — and the alternatives are worse: a
+ * `createdate` comparison depends on clock agreement between this machine and
+ * HubSpot, and scanning the whole portal costs far more than one extra batch.
+ *
+ * Records that do not exist are simply absent from the results. HubSpot reports
+ * them under `errors` with category `OBJECT_NOT_FOUND` and returns HTTP 200, so
+ * a missing record is not a failure and must not be treated as one.
+ *
+ * @param {string[]} propertyValues Values of `idProperty` to look up.
+ * @param {{idProperty?: string, properties?: string[]}} [options]
+ * @returns {Promise<{found: Map<string, object>, missing: string[]}>}
+ */
+async function batchReadByProperty(propertyValues, options = {}) {
+  const config = getHubSpotConfig();
+  const { idProperty = 'email', properties = DEFAULT_CONTACT_PROPERTIES } = options;
+
+  const found = new Map();
+  const missing = [];
+
+  for (const batch of chunkForBatch(propertyValues, PAGINATION_LIMITS.MAX_BATCH_INPUTS)) {
+    const response = await hubSpotClient.post(
+      config.paths.objectBatch(OBJECT_TYPES.CONTACTS, 'read'),
+      {
+        idProperty,
+        properties,
+        inputs: batch.map((value) => ({ id: value })),
+      },
+      { operationName: 'batch read contacts' }
+    );
+
+    for (const record of response.results || []) {
+      found.set(record.properties?.[idProperty], record);
+    }
+    for (const batchError of response.errors || []) {
+      missing.push(...(batchError.context?.ids || []));
+    }
+  }
+
+  return { found, missing };
+}
+
+/**
  * Searches contacts by an exact property value.
  *
  * The Search API carries its own limits — five requests per second, 200 records
@@ -308,6 +355,7 @@ module.exports = {
   updateContact,
   deleteContact,
   upsertContactsByEmail,
+  batchReadByProperty,
   searchContactsByProperty,
   DEFAULT_CONTACT_PROPERTIES,
 };
