@@ -46,8 +46,13 @@ jobs:
       - name: Unit tests
         run: npm test
 
+      # Strict mode: the build fails if any artefact the brief names is missing
+      # or does not export what it should. Reporting mode was used while the
+      # project was being built, so that CI stayed green across eight pull
+      # requests and the matrix stayed readable; now that coverage is complete
+      # the matrix is a gate rather than a progress bar.
       - name: Verify every required artefact exists
-        run: npm run verify:requirements
+        run: npm run verify:requirements:strict
 
   commit-messages:
     name: Validate commit messages
