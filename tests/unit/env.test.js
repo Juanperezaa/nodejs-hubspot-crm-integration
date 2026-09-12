@@ -35,6 +35,15 @@ const VALID_TOKEN = buildToken('na1');
 const EUROPEAN_TOKEN = buildToken('eu1');
 const CLIENT_SECRET_SHAPED = ['8faf6678', '4fbc', '4be6', '9394', '98332ede3887'].join('-');
 
+// Prime dotenv before any test manipulates the environment.
+//
+// `.env` is read lazily on the first load, so without this the first test that
+// deletes a variable would trigger that read and get the variable straight
+// back. With a populated `.env` on disk the resulting failure printed the live
+// access token into the test output — a leak caused by test ordering rather
+// than by anything the code did wrong.
+getEnvironment({ requireAccessToken: false, forceReload: true });
+
 /**
  * Runs a function with a temporary environment, restoring the previous values
  * afterwards so tests cannot leak configuration into one another.
@@ -114,7 +123,13 @@ test('reports the variable name when the token is absent', () => {
 test('loads without a token when the caller does not require one', () => {
   withEnvironment({ HUBSPOT_ACCESS_TOKEN: undefined }, () => {
     const environment = getEnvironment({ requireAccessToken: false, forceReload: true });
-    assert.equal(environment.accessToken, '');
+
+    // Asserted as a boolean rather than by comparing the value directly. A
+    // direct comparison prints the actual value in its failure diff, which on a
+    // machine with a real `.env` means printing a live credential into the test
+    // output. No assertion in this repository may be able to do that.
+    assert.equal(environment.accessToken === '', true, 'accessToken should be empty');
+
     // Defaults must still be present so the fundamentals exercises can run.
     assert.equal(environment.baseUrl, 'https://api.hubapi.com');
   });
