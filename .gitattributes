@@ -1,0 +1,13 @@
+# Normalise line endings to LF in the repository regardless of the platform a
+# contributor works on. Without this, a Windows checkout commits CRLF and every
+# cross-platform diff becomes unreadable.
+* text=auto eol=lf
+
+# Binary assets must never be normalised.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.zip binary
