@@ -235,3 +235,44 @@ It also makes a claim in the documentation falsifiable: "the requested scopes
 are sufficient" is computed, and `tests/unit/scopes.test.js` fails the build if
 an endpoint is ever added whose scope the setup guide does not tell the operator
 to grant.
+
+---
+
+## D14 — Correlate deals from the list endpoint, not the Search API
+
+**Decision.** `syncDealsWithHubSpot` builds its `dealname` index by streaming
+the deal list endpoint. The Search API is not used for correlation.
+
+**Supersedes D11**, which chose search-based correlation.
+
+**Context.** HubSpot's Search API is **eventually consistent**. Measured against
+a live portal: a newly created deal was still absent from search results at
+5406 ms and first appeared at 6766 ms. Reads that hit the primary store — a
+`GET` by record id, and the list endpoint — reflect the write immediately.
+
+**Reasoning.**
+
+A synchronisation that correlates through search would fail to find a deal it
+had just created, and would create a duplicate on any run inside that roughly
+seven-second window. Since the whole point of the operation is idempotency,
+that is not a rough edge — it defeats the feature.
+
+Three secondary reasons point the same way:
+
+1. **Fewer requests.** One list page returns a hundred deals. Search-based
+   correlation costs one request per record.
+2. **A far looser rate limit.** Search allows five requests per second against
+   the standard hundred per ten seconds.
+3. **No index to wait on.** Correctness stops depending on a timing window that
+   HubSpot is free to change.
+
+**Cost accepted.** Building the index means reading the portal's deals, which
+is proportionate for a seed file and not for a portal with a hundred thousand
+deals. The scan is streamed rather than materialised, so memory stays flat, but
+a very large portal would want a different strategy — an external correlation
+store, or a custom unique property accepting the extra scope D11 rejected.
+
+**Recorded as a test.** `tests/integration/deals.integration.test.js` asserts
+that a read by id and the list endpoint both reflect a write at once, and polls
+until search catches up. If HubSpot ever makes search immediately consistent,
+that test keeps passing and this decision can be revisited on evidence.
