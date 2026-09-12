@@ -16,13 +16,13 @@
 | 2            | `feat/config-and-logging`       | merged      |
 | 3            | `feat/fundamentals`             | merged      |
 | 4            | `feat/http-client-and-errors`   | merged      |
-| 5            | `feat/contacts`                 | not started |
+| 5            | `feat/contacts`                 | in progress |
 | 6            | `feat/deals`                    | not started |
 | 7            | `feat/associations`             | not started |
 | 8            | `feat/sync`                     | not started |
 | 9            | `feat/api-handler-and-examples` | not started |
 
-**Requirement coverage:** 8 / 27 artefacts — run `npm run verify:requirements`.
+**Requirement coverage:** 15 / 27 artefacts — run `npm run verify:requirements`.
 
 **Scope coverage:** 17 / 17 endpoints authorised by the six requested scopes —
 run `npm run probe` against a live token, or `npm test` for the computed proof.
@@ -30,6 +30,73 @@ run `npm run probe` against a live token, or `npm test` for the computed proof.
 **Current blocker:** no valid `pat-` access token available. The cause is now
 understood and is a portal permissions issue, not a missing credential. See
 _2026-09-11 · Scope permissions blocked in the shared portal_ below.
+
+---
+
+## 2026-09-12 - Portal connected, and PR 7: Contacts
+
+**The blocker is cleared.** A valid access token was supplied and
+`npm run probe` ran green against a live portal.
+
+```
+hub id : 52018022          app id : 52891293
+scopes : 7 granted         17 of 17 endpoints permitted
+```
+
+**F1 is now proven, not argued.** Among 206 deal properties defined in that
+portal:
+
+| Property                                       | Exists |
+| ---------------------------------------------- | ------ |
+| `dealname`, `amount`, `pipeline`, `dealstage`  | yes    |
+| `hs_pipeline`, `hs_stage`, `hs_pipeline_stage` | **no** |
+
+The property names the brief specifies do not exist on the Deal object. The
+alias layer built in PR 4 is what makes the brief's payload work.
+
+**Done**
+
+- `contactRepository` covering the Contacts endpoints: streaming, cursor
+  paging, read by id, read by email through `idProperty`, create, update,
+  delete, batch upsert, search.
+- `hubSpotService` with R01 through R05 under the names the brief fixes.
+- `tests/integration/contacts.integration.test.js`: 12 real calls against the
+  portal, guarded by `HUBSPOT_ALLOW_WRITE`, cleaning up in `after()` regardless
+  of outcome.
+
+**Verified**
+
+- `npm test` 156/156. `npm run test:integration` **12/12 against the live
+  portal**.
+- Requirement matrix 15 / 27.
+
+**Findings from the live portal**
+
+- _HubSpot reports a per-second limit its published table omits._ Responses
+  carry `x-hubspot-ratelimit-secondly: 10` and a remaining counter alongside
+  the documented hundred-per-ten-seconds burst. It binds first under
+  concurrency: ten parallel requests exhaust it while the ten-second window
+  still shows ninety remaining. The client now records both, and batch upserts
+  run sequentially rather than through `Promise.all` because of it.
+- _`DELETE` is unconditionally idempotent and silent about it._ Measured:
+  deleting a live record, an already-archived record, and **an id that never
+  existed** all return success. The endpoint never returns 404.
+
+**Defects found and fixed**
+
+- _A dishonest contract._ `deleteHubSpotContact` returned `deleted: true`,
+  inferring a removal from a successful response. Given the finding above that
+  claim could not be supported, because the API does not know either. It now
+  reports `archived`, meaning HubSpot accepted the request, and populates
+  `existedBeforeDelete` only when a caller opts into the extra read that can
+  establish it. The integration suite caught this.
+- _A credential leak through a test assertion._ With a populated `.env` on
+  disk, a test deleting `HUBSPOT_ACCESS_TOKEN` got it straight back, because
+  `resetEnvironmentCache` also reset the dotenv flag and the lazy first read
+  repopulated it. The resulting assertion failure printed the live token into
+  the test output. Two fixes: the cache reset no longer reloads `.env`, and the
+  assertion now compares a boolean so no failure diff can print a credential.
+  Verified by grepping the suite output for token patterns: zero.
 
 ---
 
