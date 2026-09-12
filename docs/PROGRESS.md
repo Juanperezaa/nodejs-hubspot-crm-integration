@@ -12,8 +12,8 @@
 
 | Pull request | Scope                           | State       |
 | ------------ | ------------------------------- | ----------- |
-| 1            | `chore/scaffolding`             | in progress |
-| 2            | `feat/config-and-logging`       | not started |
+| 1            | `chore/scaffolding`             | merged      |
+| 2            | `feat/config-and-logging`       | in progress |
 | 3            | `feat/fundamentals`             | not started |
 | 4            | `feat/http-client-and-errors`   | not started |
 | 5            | `feat/contacts`                 | not started |
@@ -26,6 +26,62 @@
 
 **Current blocker:** no valid `pat-` access token available. See entry
 _2026-09-11 · Credential mismatch_ below.
+
+---
+
+## 2026-09-11 · PR 2 — Configuration, logging and portal diagnostic
+
+**Done**
+
+- `src/utils/redactSecrets.js` — structural secret redaction. Walks any value,
+  masking by key name (`authorization`, `tokenKey`, `clientSecret`, …) and by
+  text pattern (`pat-…` tokens, `Bearer …`, `hapikey=…`, bare UUIDs). Cycle
+  safe, because axios error objects are self-referential.
+- `src/utils/logger.js` — levelled logger. Every value passes through redaction
+  before it reaches a transport; there is no path around it. Errors and
+  warnings go to stderr so piping stdout never mixes diagnostics into data.
+- `src/errors/InvalidConfigurationError.js` — kept distinct from API errors
+  because retrying a configuration fault can never help.
+- `src/config/env.js` — lazy, cached, frozen environment loading with
+  per-variable validation.
+- `src/config/hubspot.config.js` — the single place where HubSpot's API surface
+  is described: every endpoint path builder, the association type ids, the
+  pagination limits, the retry policy and the deal property aliases.
+- `scripts/probe-portal.js` — live diagnostic answering the four questions
+  every later failure traces back to: does the token authenticate, which scopes
+  were granted, which deal property names really exist, and which pipeline and
+  stage ids belong in `.env`.
+
+**Verified**
+
+- `npm run lint` clean.
+- `npm test` — 30 passing, up from 10. Twenty new assertions cover redaction
+  and configuration validation.
+
+**Decisions taken during the work**
+
+- _Lazy configuration validation._ Reading configuration at require time would
+  break `npm run verify:requirements` in CI, where no token exists — and CI is
+  precisely where the requirement matrix matters most. It would also prevent
+  the Section 1 fundamentals from running without HubSpot credentials.
+- _The probe does not use `hubSpotClient`._ A diagnostic must not share the
+  code path it is diagnosing; if the client's auth or retry logic were broken,
+  a probe built on it would report the symptom rather than the cause.
+- _`HUBSPOT_ALLOW_WRITE` accepts only the word `true`, in any casing._ Values
+  that merely suggest assent (`1`, `yes`, `on`) are rejected so the switch fails
+  closed. Rejecting `TRUE` as well would be a usability trap, not a safety
+  property. The first version of this check disagreed with its own docstring;
+  the test caught it.
+- _Merge strategy corrected to merge commits._ Documented in `PLAN.md` §7. The
+  original plan said squash, which would have discarded the per-commit
+  reasoning that this repository is partly being judged on.
+
+**Notes**
+
+- `env.js` detects the specific case of a client secret being supplied in place
+  of an access token and explains the difference, because that mistake already
+  cost one cycle on this project and produces a 401 otherwise — which reads
+  identically to a missing scope.
 
 ---
 
