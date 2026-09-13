@@ -123,6 +123,30 @@ operations in this project run sequentially rather than through `Promise.all`.
 budget falls to five or fewer, so a 429 is diagnosable in hindsight rather than
 surprising.
 
+### What this looks like when the integration suite runs
+
+Worth knowing before running `npm run test:integration`, because the output is
+alarming if unexpected: the suite makes a few hundred sequential calls and
+**runs at the edge of the burst limit**. One measured run:
+
+```
+48 / 48 passing
+31 burst-limit warnings
+11 retries
+x-hubspot-ratelimit-secondly-remaining reaching 0
+```
+
+That is the retry policy doing its job, not a fault. The warnings are the client
+reporting a budget below five, and the retries are throttled calls succeeding on
+a later attempt.
+
+It does mean the suite is **not instantaneous and not perfectly deterministic**.
+One run in several observed two transient failures immediately after the example
+scripts had already spent budget; three subsequent runs under the same
+deliberately drained conditions passed 48/48, so the cause was transient on
+HubSpot's side rather than in this code. If it happens, re-run — and if it
+happens repeatedly, `HUBSPOT_MAX_RETRY_ATTEMPTS` raises the budget.
+
 **The Search API is limited separately:** 5 requests per second, 200 records per
 page, 10,000 results per query. This is why neither synchronisation uses it.
 
