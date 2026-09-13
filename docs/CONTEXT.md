@@ -49,7 +49,7 @@ Dependencies run in one direction only. Nothing below reaches upward.
 
 ```
             ┌──────────────────────────────────────────┐
-  examples/ │  full-workflow.js, create-deal.js  │  how it is invoked
+  examples/ │  full-workflow.js, create-deal.js …      │  how it is invoked
             └────────────────────┬─────────────────────┘
                                  │
             ┌────────────────────▼─────────────────────┐
