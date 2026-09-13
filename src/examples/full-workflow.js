@@ -31,6 +31,11 @@ const step = (number, title) => write(`\n${number}. ${title}\n${'-'.repeat(74)}\
 const RUN_ID = Date.now();
 const keepRecords = process.argv.includes('--keep');
 
+/**
+ * Runs the whole integration: create, associate, read back, update, clean up.
+ *
+ * @returns {Promise<void>}
+ */
 async function main() {
   const config = getHubSpotConfig();
 
