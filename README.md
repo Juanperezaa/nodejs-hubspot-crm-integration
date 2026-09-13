@@ -195,15 +195,15 @@ portal's real pipeline and stage ids ready to paste.
 
 ### Verification
 
-| Command                       | What it does                                                           |
-| ----------------------------- | ---------------------------------------------------------------------- |
-| `npm run validate`            | lint + unit tests + requirement matrix                                 |
-| `npm run lint`                | ESLint                                                                 |
-| `npm test`                    | 163 unit tests, no network                                             |
-| `npm run verify:requirements` | loads every named artefact and prints a PASS/FAIL matrix               |
-| `npm run lint:commits`        | validates commit messages against Conventional Commits                 |
-| `npm run probe`               | live portal: identity, scopes, deal properties, pipelines, rate limits |
-| `npm run test:integration`    | 48 real calls (needs `HUBSPOT_ALLOW_WRITE=true`)                       |
+| Command                       | What it does                                                                                                                                                               |
+| ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm run validate`            | lint + unit tests + requirement matrix                                                                                                                                     |
+| `npm run lint`                | ESLint                                                                                                                                                                     |
+| `npm test`                    | 163 unit tests, no network                                                                                                                                                 |
+| `npm run verify:requirements` | loads every named artefact and prints a PASS/FAIL matrix                                                                                                                   |
+| `npm run lint:commits`        | validates commit messages against Conventional Commits                                                                                                                     |
+| `npm run probe`               | live portal: identity, scopes, deal properties, pipelines, rate limits                                                                                                     |
+| `npm run test:integration`    | 48 real calls (needs `HUBSPOT_ALLOW_WRITE=true`) — runs near HubSpot's burst limit, so retry warnings are expected; see [`docs/ERROR_HANDLING.md`](docs/ERROR_HANDLING.md) |
 
 ### Examples
 
