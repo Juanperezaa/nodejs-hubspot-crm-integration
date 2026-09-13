@@ -64,6 +64,11 @@ function reportClassification(label, error) {
   write('\n');
 }
 
+/**
+ * Provokes each failure class in turn and prints how the project classifies it.
+ *
+ * @returns {Promise<void>}
+ */
 async function main() {
   write('\nError handling\n');
   write('='.repeat(74) + '\n');
