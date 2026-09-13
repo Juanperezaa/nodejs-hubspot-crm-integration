@@ -288,7 +288,7 @@ place entirely.
 ## 10. How to verify any of this
 
 ```bash
-npm run validate              # lint + 163 unit tests + requirement matrix
+npm run validate              # lint + unit tests + requirement matrix
 npm run probe                 # portal identity, scopes, properties, pipelines
 npm run test:integration      # 48 real calls against the portal
 npm run example:workflow      # the whole integration in one run, self-cleaning

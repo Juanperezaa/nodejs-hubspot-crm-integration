@@ -9,7 +9,7 @@ a real CRM, asserts against them, and deletes them.
 
 |                         |                                       |
 | ----------------------- | ------------------------------------- |
-| Unit tests              | **163 passing**                       |
+| Unit tests              | **182 passing**                       |
 | Integration tests       | **48 passing, against a live portal** |
 | Required artefacts      | **27 / 27 verified mechanically**     |
 | Node.js                 | 18, 20 and 22, all green in CI        |
@@ -97,7 +97,7 @@ The brief asks for the modules used to be listed.
 | [`@commitlint/cli`](https://www.npmjs.com/package/@commitlint/cli)                                 | ^19.5.0 | Validates commit messages against Conventional Commits.                                            |
 | [`@commitlint/config-conventional`](https://www.npmjs.com/package/@commitlint/config-conventional) | ^19.5.0 | The rule set commitlint extends.                                                                   |
 
-**No test framework.** The 163 unit tests and 48 integration tests run on Node's
+**No test framework.** Both suites run on Node's
 built-in [`node:test`](https://nodejs.org/api/test.html) runner, so the test
 suite adds no dependency at all.
 
@@ -199,7 +199,7 @@ portal's real pipeline and stage ids ready to paste.
 | ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `npm run validate`            | lint + unit tests + requirement matrix                                                                                                                                     |
 | `npm run lint`                | ESLint                                                                                                                                                                     |
-| `npm test`                    | 163 unit tests, no network                                                                                                                                                 |
+| `npm test`                    | Unit tests — pure logic, no network                                                                                                                                        |
 | `npm run verify:requirements` | loads every named artefact and prints a PASS/FAIL matrix                                                                                                                   |
 | `npm run lint:commits`        | validates commit messages against Conventional Commits                                                                                                                     |
 | `npm run probe`               | live portal: identity, scopes, deal properties, pipelines, rate limits                                                                                                     |
