@@ -61,10 +61,16 @@ const DEAL_PROPERTY_ALIASES = Object.freeze({
   hs_pipeline_stage: 'dealstage',
 });
 
-/** HTTP status codes that are worth retrying, and those that never are. */
-const RETRYABLE_STATUS_CODES = Object.freeze([429, 500, 502, 503, 504]);
+/**
+ * Node socket-level failures that indicate a transient transport fault.
+ *
+ * There is deliberately no companion list of retryable HTTP *statuses*.
+ * Whether a response is worth retrying is decided by `HubSpotApiError.kind`,
+ * which `classifyStatusCode` derives from the status — so a second list here
+ * would be the same knowledge written twice, free to drift, and the retry loop
+ * would still not consult it.
+ */
 
-/** Node socket-level failures that indicate a transient transport fault. */
 const RETRYABLE_NETWORK_CODES = Object.freeze([
   'ECONNRESET',
   'ECONNABORTED',
@@ -111,12 +117,12 @@ function getHubSpotConfig(options = {}) {
     defaultPipelineId: environment.defaultPipelineId,
     defaultStageId: environment.defaultStageId,
 
+    // Only what the retry loop and the backoff calculation actually read.
+    // Fields nothing consumes invite a reader to believe they are consulted.
     retryPolicy: Object.freeze({
       maxAttempts: environment.maxRetryAttempts,
       baseDelayMs: environment.retryBaseDelayMs,
       maxDelayMs: environment.retryMaxDelayMs,
-      retryableStatusCodes: RETRYABLE_STATUS_CODES,
-      retryableNetworkCodes: RETRYABLE_NETWORK_CODES,
     }),
 
     /**
@@ -174,7 +180,6 @@ module.exports = {
   OBJECT_TYPES,
   ASSOCIATION_TYPE_IDS,
   DEAL_PROPERTY_ALIASES,
-  RETRYABLE_STATUS_CODES,
   RETRYABLE_NETWORK_CODES,
   PAGINATION_LIMITS,
 };
