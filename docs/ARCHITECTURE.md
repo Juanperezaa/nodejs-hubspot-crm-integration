@@ -287,7 +287,7 @@ happy path is never indented behind a condition.
 
 | Suite                | Tests | Needs a network     |
 | -------------------- | ----- | ------------------- |
-| `tests/unit/`        | 163   | no                  |
+| `tests/unit/`        | 182   | no                  |
 | `tests/integration/` | 48    | yes — a real portal |
 
 The split is not arbitrary. Unit tests cover what is decidable without HubSpot:
